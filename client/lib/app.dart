@@ -95,7 +95,7 @@ class _MajoinAppState extends State<MajoinApp> {
     final svc = MatrixClientService.instance;
     if (!svc.hasClient || !svc.isLoggedIn) return;
     if (_push == null) {
-      _push = PushService(svc.client)..init();
+      _push = PushService(svc.client, _navKey)..init();
     }
     if (!_callInit) {
       _callInit = true;

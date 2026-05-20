@@ -5,6 +5,13 @@ plugins {
     id("dev.flutter.flutter-gradle-plugin")
 }
 
+// FCM: apply the Google Services plugin only when the config file exists,
+// so a missing google-services.json does not break the build. Drop the file
+// next to this build script to enable remote push. See docs/push-setup.md.
+if (file("google-services.json").exists()) {
+    apply(plugin = "com.google.gms.google-services")
+}
+
 android {
     namespace = "app.majoin.majoin"
     compileSdk = flutter.compileSdkVersion

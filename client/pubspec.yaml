@@ -34,6 +34,12 @@ dependencies:
   # Native bits.
   flutter_local_notifications: ^19.4.2
 
+  # Push (FCM via sygnal). Needs google-services.json / GoogleService-Info.plist
+  # to actually deliver — see docs/push-setup.md. Absent config degrades to
+  # local-only notifications at runtime.
+  firebase_core: ^3.8.0
+  firebase_messaging: ^15.1.5
+
   # UI helpers.
   flutter_adaptive_scaffold: ^0.3.3
   cupertino_icons: ^1.0.8
