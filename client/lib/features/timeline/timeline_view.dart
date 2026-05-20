@@ -22,6 +22,7 @@ class TimelineView extends StatefulWidget {
 
 class _TimelineViewState extends State<TimelineView> {
   Timeline? _timeline;
+  String? _loadError;
   final TimelineUiState _ui = TimelineUiState();
   final ScrollController _scrollCtl = ScrollController();
   StreamSubscription? _syncSub;
@@ -63,14 +64,20 @@ class _TimelineViewState extends State<TimelineView> {
   }
 
   Future<void> _open() async {
-    final t = await widget.room.getTimeline(onChange: (_) {
-      if (mounted) setState(() {});
-    }, onInsert: (_) {
-      if (mounted) setState(() {});
+    try {
+      final t = await widget.room.getTimeline(onChange: (_) {
+        if (mounted) setState(() {});
+      }, onInsert: (_) {
+        if (mounted) setState(() {});
+        _sendReadReceipt();
+      }).timeout(const Duration(seconds: 20));
+      if (mounted) setState(() => _timeline = t);
       _sendReadReceipt();
-    });
-    if (mounted) setState(() => _timeline = t);
-    _sendReadReceipt();
+    } catch (e, st) {
+      // Surface a stuck/failed getTimeline instead of an endless spinner.
+      Logs().e('[Timeline] getTimeline failed for ${widget.room.id}', e, st);
+      if (mounted) setState(() => _loadError = e.toString());
+    }
   }
 
   void _sendReadReceipt() {
@@ -104,7 +111,28 @@ class _TimelineViewState extends State<TimelineView> {
     if (tl == null) {
       return Container(
         color: AppTheme.chatBg,
-        child: const Center(child: CircularProgressIndicator()),
+        alignment: Alignment.center,
+        child: _loadError != null
+            ? Padding(
+                padding: const EdgeInsets.all(24),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text('chat.loadError'.tr,
+                        textAlign: TextAlign.center,
+                        style: const TextStyle(color: AppTheme.subtleText)),
+                    const SizedBox(height: 8),
+                    TextButton(
+                      onPressed: () {
+                        setState(() => _loadError = null);
+                        _open();
+                      },
+                      child: Text('common.retry'.tr),
+                    ),
+                  ],
+                ),
+              )
+            : const CircularProgressIndicator(),
       );
     }
     final events = tl.events.where(_visible).toList();

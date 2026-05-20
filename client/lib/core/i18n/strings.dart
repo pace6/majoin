@@ -158,6 +158,7 @@ const Map<String, Map<String, String>> _bundles = {
     // Chat
     'chat.typing': 'กำลังพิมพ์…',
     'chat.empty': 'ยังไม่มีข้อความ — เริ่มสนทนาได้เลย',
+    'chat.loadError': 'โหลดแชทไม่สำเร็จ',
     'file.downloading': 'กำลังดาวน์โหลด…',
     'file.saved': 'บันทึกไฟล์แล้ว',
 
@@ -335,6 +336,7 @@ const Map<String, Map<String, String>> _bundles = {
 
     'chat.typing': 'typing…',
     'chat.empty': 'No messages yet — say hi',
+    'chat.loadError': 'Could not load chat',
     'file.downloading': 'Downloading…',
     'file.saved': 'File saved',
 
