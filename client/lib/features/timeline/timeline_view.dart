@@ -73,10 +73,31 @@ class _TimelineViewState extends State<TimelineView> {
       }).timeout(const Duration(seconds: 20));
       if (mounted) setState(() => _timeline = t);
       _sendReadReceipt();
+      _prefillHistory();
     } catch (e, st) {
       // Surface a stuck/failed getTimeline instead of an endless spinner.
       Logs().e('[Timeline] getTimeline failed for ${widget.room.id}', e, st);
       if (mounted) setState(() => _loadError = e.toString());
+    }
+  }
+
+  /// Pull a few pages of history up front so a short chat is fully loaded
+  /// (and a long one has enough to scroll). Without this, requestHistory —
+  /// gated on a scroll the user can't perform — would never fire.
+  Future<void> _prefillHistory() async {
+    var pages = 0;
+    while (mounted &&
+        _timeline != null &&
+        _timeline!.canRequestHistory &&
+        _timeline!.events.length < 50 &&
+        pages < 5) {
+      pages++;
+      try {
+        await _timeline!.requestHistory();
+      } catch (_) {
+        break; // best-effort — stop on any failure
+      }
+      if (mounted) setState(() {});
     }
   }
 
