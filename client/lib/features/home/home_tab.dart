@@ -1,10 +1,7 @@
-import 'dart:io';
-
-import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
-import 'package:image_picker/image_picker.dart';
 import 'package:matrix/matrix.dart';
+
 import '../../core/client/matrix_client.dart';
 import '../../core/i18n/strings.dart';
 import '../../core/util/mxid.dart';
@@ -13,8 +10,7 @@ import '../../ui/widgets/mxc_image.dart';
 import '../rooms/new_chat_dialog.dart';
 import '../stickers/sticker_store.dart';
 
-/// Line-style Home tab: profile card + collapsible Friends / Groups sections +
-/// quick actions row.
+/// Pebble-style Home: greeting strip, friends row, quick actions, groups card.
 class HomeTab extends StatefulWidget {
   const HomeTab({super.key});
 
@@ -24,9 +20,6 @@ class HomeTab extends StatefulWidget {
 
 class _HomeTabState extends State<HomeTab> {
   Profile? _profile;
-  bool _friendsExpanded = true;
-  bool _groupsExpanded = true;
-
   Client get _c => MatrixClientService.instance.client;
 
   @override
@@ -44,229 +37,319 @@ class _HomeTabState extends State<HomeTab> {
     } catch (_) {}
   }
 
-  /// Pick an image and set it as the account avatar.
-  Future<void> _editAvatar() async {
-    final messenger = ScaffoldMessenger.of(context);
-    final XFile? x;
-    try {
-      x = await ImagePicker().pickImage(
-        source: ImageSource.gallery,
-        imageQuality: 90,
-        maxWidth: 800,
-        maxHeight: 800,
-      );
-    } catch (e) {
-      messenger.showSnackBar(
-          SnackBar(content: Text('${'pickerError'.tr}: $e')));
-      return;
-    }
-    if (x == null) return;
-    try {
-      final bytes = await File(x.path).readAsBytes();
-      await _c.setAvatar(MatrixImageFile(bytes: bytes, name: x.name));
-      await _loadProfile();
-    } catch (e) {
-      messenger.showSnackBar(
-          SnackBar(content: Text('${'profile.avatarError'.tr}: $e')));
-    }
+  String get _greeting {
+    final h = DateTime.now().hour;
+    if (h < 12) return 'home.morning'.tr;
+    if (h < 18) return 'home.afternoon'.tr;
+    return 'home.evening'.tr;
   }
+
+  void _openRoom(Room r) =>
+      context.push('/rooms/${Uri.encodeComponent(r.id)}');
 
   @override
   Widget build(BuildContext context) {
     return StreamBuilder(
       stream: _c.onSync.stream,
       builder: (context, _) {
-        final rooms = _c.rooms.where((r) => r.membership == Membership.join);
-        final dms = rooms.where((r) => r.isDirectChat).toList();
-        final groups = rooms.where((r) => !r.isDirectChat).toList();
-        final friends = <String, Room>{};
-        for (final r in dms) {
-          final peer = r.directChatMatrixID;
-          if (peer != null) friends[peer] = r;
-        }
+        final joined =
+            _c.rooms.where((r) => r.membership == Membership.join);
+        final friends = joined.where((r) => r.isDirectChat).toList();
+        final groups = joined.where((r) => !r.isDirectChat).toList();
+        final mxid = _c.userID ?? '';
+        final name = (_profile?.displayName?.isNotEmpty ?? false)
+            ? _profile!.displayName!
+            : localpartOf(mxid);
+        final firstName = name.split(' ').first;
 
         return ListView(
-          padding: EdgeInsets.zero,
+          padding: const EdgeInsets.only(bottom: 24),
           children: [
-            _ProfileCard(
-              profile: _profile,
-              mxid: _c.userID ?? '',
-              onEditAvatar: _editAvatar,
+            // Greeting strip.
+            Padding(
+              padding: const EdgeInsets.fromLTRB(20, 4, 20, 8),
+              child: Row(
+                children: [
+                  _Avatar(
+                    mxc: _profile?.avatarUrl?.toString(),
+                    label: name,
+                    size: 44,
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text('$_greeting,',
+                            style: const TextStyle(
+                                fontSize: 12.5,
+                                color: AppTheme.subtleText)),
+                        Text(firstName,
+                            style: const TextStyle(
+                                fontSize: 17,
+                                fontWeight: FontWeight.w700,
+                                color: AppTheme.ink)),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
             ),
-            const SizedBox(height: 8),
-            _QuickActions(
-              onAddFriend: () async {
-                final id = await showNewChatDialog(context);
-                if (id != null && context.mounted) {
-                  // RoomList stream will pick it up on next sync.
-                }
-              },
+
+            // Friends row.
+            _sectionLabel('home.friends'.tr),
+            SizedBox(
+              height: 92,
+              child: ListView(
+                scrollDirection: Axis.horizontal,
+                padding: const EdgeInsets.symmetric(horizontal: 20),
+                children: [
+                  _addFriendCircle(),
+                  for (final r in friends) _friendCircle(r),
+                ],
+              ),
             ),
-            const _SectionDivider(),
-            _SectionHeader(
-              title: 'home.friends'.tr,
-              count: friends.length,
-              expanded: _friendsExpanded,
-              onToggle: () => setState(
-                  () => _friendsExpanded = !_friendsExpanded),
+
+            // Quick actions.
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
+              child: Row(
+                children: [
+                  _quickAction(
+                    icon: Icons.qr_code_2,
+                    label: 'home.qrCode'.tr.replaceAll('\n', ' '),
+                    tint: const Color(0xFF3A6FF0),
+                    onTap: () => _showQr(mxid),
+                  ),
+                  const SizedBox(width: 10),
+                  _quickAction(
+                    icon: Icons.person_add_alt_1,
+                    label: 'home.addFriend'.tr.replaceAll('\n', ' '),
+                    tint: AppTheme.accent,
+                    onTap: _newChat,
+                  ),
+                  const SizedBox(width: 10),
+                  _quickAction(
+                    icon: Icons.emoji_emotions_outlined,
+                    label: 'home.stickerShop'.tr.replaceAll('\n', ' '),
+                    tint: const Color(0xFFE86A5C),
+                    onTap: () => Navigator.of(context).push(
+                      MaterialPageRoute(
+                          builder: (_) => const StickerStorePage()),
+                    ),
+                  ),
+                ],
+              ),
             ),
-            if (_friendsExpanded)
-              ...friends.values.map((r) => _ContactTile(room: r, isDm: true)),
-            const _SectionDivider(),
-            _SectionHeader(
-              title: 'home.groups'.tr,
-              count: groups.length,
-              expanded: _groupsExpanded,
-              onToggle: () => setState(
-                  () => _groupsExpanded = !_groupsExpanded),
+
+            // Groups.
+            _sectionLabel('home.groups'.tr),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              child: Container(
+                decoration: BoxDecoration(
+                  color: AppTheme.card,
+                  borderRadius: BorderRadius.circular(18),
+                ),
+                clipBehavior: Clip.antiAlias,
+                child: groups.isEmpty
+                    ? Padding(
+                        padding: const EdgeInsets.all(20),
+                        child: Text('home.noGroups'.tr,
+                            style: const TextStyle(
+                                color: AppTheme.subtleText, fontSize: 13)),
+                      )
+                    : Column(
+                        children: [
+                          for (var i = 0; i < groups.length; i++)
+                            _groupRow(groups[i], i == groups.length - 1),
+                        ],
+                      ),
+              ),
             ),
-            if (_groupsExpanded)
-              ...groups.map((r) => _ContactTile(room: r, isDm: false)),
-            const _SectionDivider(),
-            _SectionHeader(
-                title: 'home.officialAccounts'.tr,
-                count: 0,
-                expanded: false),
-            const _SectionDivider(),
-            ListTile(
-              leading: const Icon(Icons.settings_outlined),
-              title: Text('common.settings'.tr),
-              trailing: const Icon(Icons.chevron_right, color: Colors.black26),
-              onTap: () {},
-            ),
-            const SizedBox(height: 32),
           ],
         );
       },
     );
   }
-}
 
-class _ProfileCard extends StatelessWidget {
-  const _ProfileCard({
-    required this.profile,
-    required this.mxid,
-    required this.onEditAvatar,
-  });
-  final Profile? profile;
-  final String mxid;
-  final VoidCallback onEditAvatar;
+  Widget _sectionLabel(String text) => Padding(
+        padding: const EdgeInsets.fromLTRB(20, 20, 20, 10),
+        child: Text(text,
+            style: const TextStyle(
+                fontSize: 15.5,
+                fontWeight: FontWeight.w700,
+                color: AppTheme.ink)),
+      );
 
-  String get _displayName {
-    final dn = profile?.displayName;
-    if (dn != null && dn.isNotEmpty) return dn;
-    return localpartOf(mxid);
+  Future<void> _newChat() async {
+    final router = GoRouter.of(context);
+    final id = await showNewChatDialog(context);
+    if (id != null && mounted) {
+      router.push('/rooms/${Uri.encodeComponent(id)}');
+    }
   }
 
-  @override
-  Widget build(BuildContext context) {
-    final avatarMxc = profile?.avatarUrl?.toString();
-    return InkWell(
-      onTap: onEditAvatar,
-      child: Container(
-        color: Colors.white,
-        padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
-        child: Row(
+  Widget _addFriendCircle() {
+    return GestureDetector(
+      onTap: _newChat,
+      child: SizedBox(
+        width: 64,
+        child: Column(
           children: [
-            Stack(
-              children: [
-                Container(
-                  width: 56,
-                  height: 56,
-                  clipBehavior: Clip.antiAlias,
-                  decoration: BoxDecoration(
-                    color: AppTheme.lineGreen.withValues(alpha: 0.15),
-                    borderRadius: BorderRadius.circular(16),
-                  ),
-                  alignment: Alignment.center,
-                  child: avatarMxc != null
-                      ? MxcImage(url: avatarMxc, width: 56, height: 56)
-                      : Text(
-                          _displayName.characters.first.toUpperCase(),
-                          style: const TextStyle(
-                              fontSize: 24,
-                              fontWeight: FontWeight.w700,
-                              color: AppTheme.lineGreen),
-                        ),
-                ),
-                Positioned(
-                  right: 0,
-                  bottom: 0,
-                  child: Container(
-                    padding: const EdgeInsets.all(3),
-                    decoration: BoxDecoration(
-                      color: AppTheme.lineGreen,
-                      shape: BoxShape.circle,
-                      border: Border.all(color: Colors.white, width: 1.5),
-                    ),
-                    child: const Icon(Icons.camera_alt,
-                        size: 11, color: Colors.white),
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(_displayName,
-                      style: const TextStyle(
-                          fontSize: 17,
-                          fontWeight: FontWeight.w700,
-                          color: Color(0xFF1A1A1A))),
-                  const SizedBox(height: 2),
-                  Text(localpartOf(mxid),
-                      style: const TextStyle(
-                          fontSize: 12, color: AppTheme.subtleText)),
-                ],
+            Container(
+              width: 56,
+              height: 56,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                border: Border.all(
+                    color: const Color(0x33000000),
+                    width: 1.5,
+                    style: BorderStyle.solid),
               ),
+              child: const Icon(Icons.add,
+                  size: 20, color: AppTheme.subtleText),
             ),
+            const SizedBox(height: 6),
+            Text('home.add'.tr,
+                style: const TextStyle(
+                    fontSize: 11, color: AppTheme.subtleText)),
           ],
         ),
       ),
     );
   }
-}
 
-class _QuickActions extends StatelessWidget {
-  const _QuickActions({required this.onAddFriend});
-  final VoidCallback onAddFriend;
+  Widget _friendCircle(Room r) {
+    final name = r.getLocalizedDisplayname();
+    return GestureDetector(
+      onTap: () => _openRoom(r),
+      child: Padding(
+        padding: const EdgeInsets.only(left: 14),
+        child: SizedBox(
+          width: 64,
+          child: Column(
+            children: [
+              _Avatar(mxc: r.avatar?.toString(), label: name, size: 56),
+              const SizedBox(height: 6),
+              Text(name.split(' ').first,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w500,
+                      color: AppTheme.ink)),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
 
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      color: Colors.white,
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 12),
-      child: Row(
-        children: [
-          _ActionTile(
-            icon: Icons.person_add_alt_1_outlined,
-            label: 'home.addFriend'.tr,
-            onTap: onAddFriend,
+  Widget _quickAction({
+    required IconData icon,
+    required String label,
+    required Color tint,
+    required VoidCallback onTap,
+  }) {
+    return Expanded(
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(16),
+        child: Container(
+          padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 8),
+          decoration: BoxDecoration(
+            color: AppTheme.card,
+            borderRadius: BorderRadius.circular(16),
           ),
-          _ActionTile(
-            icon: Icons.qr_code_scanner,
-            label: 'home.qrCode'.tr,
-            onTap: () {},
+          child: Column(
+            children: [
+              Container(
+                width: 38,
+                height: 38,
+                decoration: BoxDecoration(
+                  color: tint,
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Icon(icon, size: 20, color: Colors.white),
+              ),
+              const SizedBox(height: 7),
+              Text(label,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                      fontSize: 11.5,
+                      fontWeight: FontWeight.w600,
+                      color: AppTheme.ink)),
+            ],
           ),
-          _ActionTile(
-            icon: Icons.search,
-            label: 'home.search'.tr,
-            onTap: () {},
-          ),
-          _ActionTile(
-            icon: Icons.emoji_emotions_outlined,
-            label: 'home.stickerShop'.tr,
-            onTap: () => Navigator.of(context).push(
-              MaterialPageRoute(
-                  builder: (_) => const StickerStorePage()),
+        ),
+      ),
+    );
+  }
+
+  Widget _groupRow(Room r, bool last) {
+    final name = r.getLocalizedDisplayname();
+    final members = r.summary.mJoinedMemberCount ?? 0;
+    return Column(
+      children: [
+        InkWell(
+          onTap: () => _openRoom(r),
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
+            child: Row(
+              children: [
+                _Avatar(
+                    mxc: r.avatar?.toString(),
+                    label: name,
+                    size: 40,
+                    square: true),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(name,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                              fontSize: 14.5,
+                              fontWeight: FontWeight.w600,
+                              color: AppTheme.ink)),
+                      const SizedBox(height: 1),
+                      Text('$members ${'home.members'.tr}',
+                          style: const TextStyle(
+                              fontSize: 12.5, color: AppTheme.subtleText)),
+                    ],
+                  ),
+                ),
+                const Icon(Icons.chevron_right,
+                    size: 18, color: AppTheme.subtleText),
+              ],
             ),
           ),
-          _ActionTile(
-            icon: Icons.palette_outlined,
-            label: 'home.themeShop'.tr,
-            onTap: () {},
+        ),
+        if (!last)
+          const Divider(
+              height: 0.5,
+              thickness: 0.5,
+              indent: 66,
+              color: AppTheme.dividerColor),
+      ],
+    );
+  }
+
+  void _showQr(String mxid) {
+    showDialog<void>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text('home.qrCode'.tr.replaceAll('\n', ' ')),
+        content: Text('@${localpartOf(mxid)}',
+            style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(),
+            child: Text('common.ok'.tr),
           ),
         ],
       ),
@@ -274,186 +357,41 @@ class _QuickActions extends StatelessWidget {
   }
 }
 
-class _ActionTile extends StatelessWidget {
-  const _ActionTile({
-    required this.icon,
+/// Round (or rounded-square) avatar with an mxc image or initial fallback.
+class _Avatar extends StatelessWidget {
+  const _Avatar({
+    required this.mxc,
     required this.label,
-    required this.onTap,
+    required this.size,
+    this.square = false,
   });
-  final IconData icon;
+  final String? mxc;
   final String label;
-  final VoidCallback onTap;
+  final double size;
+  final bool square;
 
   @override
   Widget build(BuildContext context) {
-    return Expanded(
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(12),
-        child: Padding(
-          padding: const EdgeInsets.symmetric(vertical: 8),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Container(
-                width: 44,
-                height: 44,
-                decoration: BoxDecoration(
-                  color: const Color(0xFFF5F5F5),
-                  borderRadius: BorderRadius.circular(22),
-                ),
-                child: Icon(icon, color: const Color(0xFF333333)),
+    final radius =
+        square ? BorderRadius.circular(size * 0.28) : BorderRadius.circular(size);
+    final letter = label.isEmpty ? '?' : label.characters.first.toUpperCase();
+    return ClipRRect(
+      borderRadius: radius,
+      child: SizedBox(
+        width: size,
+        height: size,
+        child: mxc != null && mxc!.isNotEmpty
+            ? MxcImage(url: mxc!, width: size, height: size)
+            : Container(
+                color: AppTheme.accentSoft,
+                alignment: Alignment.center,
+                child: Text(letter,
+                    style: TextStyle(
+                        fontSize: size * 0.36,
+                        fontWeight: FontWeight.w700,
+                        color: AppTheme.accentDeep)),
               ),
-              const SizedBox(height: 4),
-              Text(label,
-                  textAlign: TextAlign.center,
-                  style: const TextStyle(fontSize: 11, height: 1.2)),
-            ],
-          ),
-        ),
       ),
     );
   }
-}
-
-class _SectionHeader extends StatelessWidget {
-  const _SectionHeader({
-    required this.title,
-    required this.count,
-    required this.expanded,
-    this.onToggle,
-  });
-  final String title;
-  final int count;
-  final bool expanded;
-  final VoidCallback? onToggle;
-
-  @override
-  Widget build(BuildContext context) {
-    return InkWell(
-      onTap: onToggle,
-      child: Container(
-        color: Colors.white,
-        padding: const EdgeInsets.fromLTRB(16, 12, 12, 12),
-        child: Row(
-          children: [
-            Text('$title  ',
-                style: const TextStyle(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w600,
-                    color: AppTheme.subtleText)),
-            Text('$count',
-                style: const TextStyle(
-                    fontSize: 13, color: AppTheme.subtleText)),
-            const Spacer(),
-            if (onToggle != null)
-              Icon(expanded ? Icons.expand_less : Icons.expand_more,
-                  color: Colors.black38),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _SectionDivider extends StatelessWidget {
-  const _SectionDivider();
-  @override
-  Widget build(BuildContext context) => Container(
-        height: 6,
-        color: const Color(0xFFF5F5F5),
-      );
-}
-
-class _ContactTile extends StatelessWidget {
-  const _ContactTile({required this.room, required this.isDm});
-  final Room room;
-  final bool isDm;
-
-  @override
-  Widget build(BuildContext context) {
-    final name = room.getLocalizedDisplayname();
-    final avatarHttp =
-        room.avatar != null ? _mxcToHttp(room.avatar.toString()) : null;
-    final letter = name.isEmpty ? '?' : name.characters.first.toUpperCase();
-
-    final avatar = ClipRRect(
-      borderRadius: BorderRadius.circular(12),
-      child: avatarHttp != null
-          ? CachedNetworkImage(
-              imageUrl: avatarHttp,
-              width: 44,
-              height: 44,
-              fit: BoxFit.cover,
-            )
-          : Container(
-              width: 44,
-              height: 44,
-              color: _colorFor(name),
-              alignment: Alignment.center,
-              child: Text(
-                letter,
-                style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 18,
-                    fontWeight: FontWeight.w600),
-              ),
-            ),
-    );
-
-    return InkWell(
-      onTap: () => context.push('/rooms/${Uri.encodeComponent(room.id)}'),
-      child: Container(
-        color: Colors.white,
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
-        child: Row(
-          children: [
-            avatar,
-            const SizedBox(width: 12),
-            Expanded(
-              child: Text(name,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                      fontSize: 14, fontWeight: FontWeight.w500)),
-            ),
-            if (!isDm)
-              Text('${room.summary.mJoinedMemberCount ?? 0}',
-                  style: const TextStyle(
-                      fontSize: 12, color: AppTheme.subtleText)),
-          ],
-        ),
-      ),
-    );
-  }
-
-  static Color _colorFor(String s) {
-    const palette = [
-      Color(0xFFE57373),
-      Color(0xFF64B5F6),
-      Color(0xFF81C784),
-      Color(0xFFFFB74D),
-      Color(0xFFBA68C8),
-      Color(0xFF4DB6AC),
-      Color(0xFFA1887F),
-    ];
-    var h = 0;
-    for (final c in s.codeUnits) {
-      h = (h * 31 + c) & 0x7fffffff;
-    }
-    return palette[h % palette.length];
-  }
-}
-
-String? _mxcToHttp(String mxc) {
-  final c = MatrixClientService.instance.client;
-  final uri = Uri.tryParse(mxc);
-  if (uri == null || uri.scheme != 'mxc') return null;
-  final hs = c.homeserver;
-  if (hs == null) return null;
-  return hs
-      .replace(
-        path: '/_matrix/client/v1/media/download/${uri.host}${uri.path}',
-      )
-      .toString();
 }
