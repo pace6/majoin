@@ -4,6 +4,7 @@ import 'package:matrix/matrix.dart';
 
 import '../../core/client/matrix_client.dart';
 import '../../core/i18n/strings.dart';
+import '../../core/util/avatar.dart';
 import '../../core/util/mxid.dart';
 import '../../ui/theme/app_theme.dart';
 import '../../ui/widgets/mxc_image.dart';
@@ -69,10 +70,32 @@ class _HomeTabState extends State<HomeTab> {
               padding: const EdgeInsets.fromLTRB(20, 4, 20, 8),
               child: Row(
                 children: [
-                  _Avatar(
-                    mxc: _profile?.avatarUrl?.toString(),
-                    label: name,
-                    size: 44,
+                  GestureDetector(
+                    onTap: _editAvatar,
+                    child: Stack(
+                      children: [
+                        _Avatar(
+                          mxc: _profile?.avatarUrl?.toString(),
+                          label: name,
+                          size: 44,
+                        ),
+                        Positioned(
+                          right: 0,
+                          bottom: 0,
+                          child: Container(
+                            padding: const EdgeInsets.all(3),
+                            decoration: BoxDecoration(
+                              color: AppTheme.accent,
+                              shape: BoxShape.circle,
+                              border:
+                                  Border.all(color: AppTheme.bg, width: 1.5),
+                            ),
+                            child: const Icon(Icons.camera_alt,
+                                size: 9, color: Colors.white),
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
                   const SizedBox(width: 12),
                   Expanded(
@@ -182,6 +205,10 @@ class _HomeTabState extends State<HomeTab> {
       );
 
   void _addFriends() => context.push('/add-friends');
+
+  Future<void> _editAvatar() async {
+    if (await pickAndSetAvatar(context) && mounted) await _loadProfile();
+  }
 
   Widget _addFriendCircle() {
     return GestureDetector(

@@ -1,12 +1,10 @@
-import 'dart:io';
-
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
-import 'package:image_picker/image_picker.dart';
 import 'package:matrix/matrix.dart';
 
 import '../../core/client/matrix_client.dart';
 import '../../core/i18n/strings.dart';
+import '../../core/util/avatar.dart';
 import '../../core/util/mxid.dart';
 import '../../ui/theme/app_theme.dart';
 import '../../ui/widgets/mxc_image.dart';
@@ -39,28 +37,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   Future<void> _editAvatar() async {
-    final messenger = ScaffoldMessenger.of(context);
-    final XFile? x;
-    try {
-      x = await ImagePicker().pickImage(
-        source: ImageSource.gallery,
-        imageQuality: 90,
-        maxWidth: 800,
-        maxHeight: 800,
-      );
-    } catch (e) {
-      messenger.showSnackBar(SnackBar(content: Text('${'pickerError'.tr}: $e')));
-      return;
-    }
-    if (x == null) return;
-    try {
-      final bytes = await File(x.path).readAsBytes();
-      await _c.setAvatar(MatrixImageFile(bytes: bytes, name: x.name));
-      await _load();
-    } catch (e) {
-      messenger
-          .showSnackBar(SnackBar(content: Text('${'profile.avatarError'.tr}: $e')));
-    }
+    if (await pickAndSetAvatar(context) && mounted) await _load();
   }
 
   @override

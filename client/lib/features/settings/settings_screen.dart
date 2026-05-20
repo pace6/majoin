@@ -4,6 +4,7 @@ import 'package:matrix/matrix.dart';
 
 import '../../core/client/matrix_client.dart';
 import '../../core/i18n/strings.dart';
+import '../../core/util/avatar.dart';
 import '../../core/util/mxid.dart';
 import '../../ui/theme/app_theme.dart';
 import '../../ui/widgets/mxc_image.dart';
@@ -35,6 +36,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
     } catch (_) {}
   }
 
+  Future<void> _editAvatar() async {
+    if (await pickAndSetAvatar(context) && mounted) await _load();
+  }
+
   @override
   Widget build(BuildContext context) {
     final lc = LocaleController.instance;
@@ -56,25 +61,47 @@ class _SettingsScreenState extends State<SettingsScreen> {
           ),
           child: Row(
             children: [
-              ClipOval(
-                child: SizedBox(
-                  width: 48,
-                  height: 48,
-                  child: avatarMxc != null
-                      ? MxcImage(url: avatarMxc, width: 48, height: 48)
-                      : Container(
-                          color: AppTheme.accentSoft,
-                          alignment: Alignment.center,
-                          child: Text(
-                            name.isEmpty
-                                ? '?'
-                                : name.characters.first.toUpperCase(),
-                            style: const TextStyle(
-                                fontSize: 20,
-                                fontWeight: FontWeight.w700,
-                                color: AppTheme.accentDeep),
-                          ),
+              GestureDetector(
+                onTap: _editAvatar,
+                child: Stack(
+                  children: [
+                    ClipOval(
+                      child: SizedBox(
+                        width: 48,
+                        height: 48,
+                        child: avatarMxc != null
+                            ? MxcImage(url: avatarMxc, width: 48, height: 48)
+                            : Container(
+                                color: AppTheme.accentSoft,
+                                alignment: Alignment.center,
+                                child: Text(
+                                  name.isEmpty
+                                      ? '?'
+                                      : name.characters.first.toUpperCase(),
+                                  style: const TextStyle(
+                                      fontSize: 20,
+                                      fontWeight: FontWeight.w700,
+                                      color: AppTheme.accentDeep),
+                                ),
+                              ),
+                      ),
+                    ),
+                    Positioned(
+                      right: 0,
+                      bottom: 0,
+                      child: Container(
+                        padding: const EdgeInsets.all(3),
+                        decoration: BoxDecoration(
+                          color: AppTheme.accent,
+                          shape: BoxShape.circle,
+                          border:
+                              Border.all(color: AppTheme.card, width: 1.5),
                         ),
+                        child: const Icon(Icons.camera_alt,
+                            size: 9, color: Colors.white),
+                      ),
+                    ),
+                  ],
                 ),
               ),
               const SizedBox(width: 12),
