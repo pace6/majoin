@@ -7,6 +7,7 @@ import 'package:matrix/matrix.dart';
 import '../stickers/pebble_stickers.dart';
 import '../../core/i18n/strings.dart';
 import '../../ui/theme/app_theme.dart';
+import '../../ui/widgets/pebble_icon.dart';
 import 'timeline_state.dart';
 import 'voice_recorder.dart';
 
@@ -256,7 +257,7 @@ class _ComposerState extends State<Composer> {
                 children: [
                   // Attach — toggles the inline attach tray.
                   _CircleButton(
-                    icon: _tray == _Tray.attach ? Icons.close : Icons.add,
+                    icon: _tray == _Tray.attach ? PIcon.close : PIcon.plus,
                     bg: _tray == _Tray.attach
                         ? AppTheme.accent
                         : const Color(0x0D000000),
@@ -313,7 +314,7 @@ class _ComposerState extends State<Composer> {
                             ),
                           ),
                           IconButton(
-                            icon: Icon(Icons.emoji_emotions_outlined,
+                            icon: PebbleIcon(PIcon.smile,
                                 size: 22,
                                 color: _tray == _Tray.sticker
                                     ? AppTheme.accent
@@ -331,13 +332,13 @@ class _ComposerState extends State<Composer> {
                   // Send when there's text, otherwise voice-record.
                   _canSend
                       ? _CircleButton(
-                          icon: Icons.send_rounded,
+                          icon: PIcon.send,
                           bg: AppTheme.accent,
                           fg: Colors.white,
                           onTap: _sendText,
                         )
                       : _CircleButton(
-                          icon: Icons.mic_none,
+                          icon: PIcon.mic,
                           bg: const Color(0x0D000000),
                           fg: AppTheme.subtleText,
                           onTap: () => setState(() => _recording = true),
@@ -439,11 +440,11 @@ class _AttachTray extends StatelessWidget {
   const _AttachTray({required this.onPick});
   final void Function(String kind) onPick;
 
-  static const _items = [
-    ('camera', Icons.photo_camera, Color(0xFF22B07D), 'attach.camera'),
-    ('photo', Icons.photo, Color(0xFF3A6FF0), 'attach.photo'),
-    ('video', Icons.movie, Color(0xFFE86A5C), 'attach.video'),
-    ('audio', Icons.mic, Color(0xFFFF9F40), 'attach.audio'),
+  static const _items = <(String, PIcon, Color, String)>[
+    ('camera', PIcon.camera, Color(0xFF22B07D), 'attach.camera'),
+    ('photo', PIcon.image, Color(0xFF3A6FF0), 'attach.photo'),
+    ('video', PIcon.film, Color(0xFFE86A5C), 'attach.video'),
+    ('audio', PIcon.mic, Color(0xFFFF9F40), 'attach.audio'),
   ];
 
   @override
@@ -479,7 +480,7 @@ class _AttachTray extends StatelessWidget {
                             offset: Offset(0, 4)),
                       ],
                     ),
-                    child: Icon(icon, size: 22, color: Colors.white),
+                    child: PebbleIcon(icon, size: 22, color: Colors.white),
                   ),
                   const SizedBox(height: 6),
                   Text(label.tr,
@@ -505,7 +506,7 @@ class _CircleButton extends StatelessWidget {
     required this.onTap,
     this.tooltip,
   });
-  final IconData icon;
+  final PIcon icon;
   final Color bg;
   final Color fg;
   final VoidCallback onTap;
@@ -519,8 +520,9 @@ class _CircleButton extends StatelessWidget {
       child: Container(
         width: 40,
         height: 40,
+        alignment: Alignment.center,
         decoration: BoxDecoration(color: bg, shape: BoxShape.circle),
-        child: Icon(icon, size: 20, color: fg),
+        child: PebbleIcon(icon, size: 20, color: fg),
       ),
     );
     return tooltip == null ? btn : Tooltip(message: tooltip!, child: btn);

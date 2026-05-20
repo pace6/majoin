@@ -8,6 +8,7 @@ import '../../features/rooms/chats_tab.dart';
 import '../../features/settings/settings_screen.dart';
 import '../../features/timeline/timeline_view.dart';
 import '../theme/app_theme.dart';
+import '../widgets/pebble_icon.dart';
 
 /// Mobile shell: Home / Chats / Profile / Settings (Pebble layout).
 class MobileShell extends StatefulWidget {
@@ -21,10 +22,10 @@ class _MobileShellState extends State<MobileShell> {
   int _tab = 1; // Default to Chats
 
   static const _tabs = <_TabSpec>[
-    _TabSpec('tab.home', Icons.home_outlined, Icons.home),
-    _TabSpec('tab.chats', Icons.chat_bubble_outline, Icons.chat_bubble),
-    _TabSpec('tab.profile', Icons.person_outline, Icons.person),
-    _TabSpec('tab.settings', Icons.settings_outlined, Icons.settings),
+    _TabSpec('tab.home', PIcon.home),
+    _TabSpec('tab.chats', PIcon.chat),
+    _TabSpec('tab.profile', PIcon.person),
+    _TabSpec('tab.settings', PIcon.gear),
   ];
 
   @override
@@ -78,10 +79,9 @@ class _MobileShellState extends State<MobileShell> {
 }
 
 class _TabSpec {
-  const _TabSpec(this.label, this.icon, this.iconActive);
+  const _TabSpec(this.label, this.icon);
   final String label;
-  final IconData icon;
-  final IconData iconActive;
+  final PIcon icon;
 }
 
 class _TabButton extends StatelessWidget {
@@ -104,7 +104,7 @@ class _TabButton extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(selected ? spec.iconActive : spec.icon, color: color, size: 24),
+            PebbleIcon(spec.icon, color: color, size: 24, filled: selected),
             const SizedBox(height: 3),
             Text(spec.label.tr,
                 style: TextStyle(
