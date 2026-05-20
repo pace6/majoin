@@ -10,8 +10,10 @@ import 'message_actions.dart';
 import 'message_bubble.dart';
 import 'timeline_state.dart';
 import '../../core/client/matrix_client.dart';
+import '../../core/util/mxid.dart';
 import '../../ui/theme/app_theme.dart';
 import '../../ui/widgets/mxc_image.dart';
+import '../../ui/widgets/pebble_icon.dart';
 
 class TimelineView extends StatefulWidget {
   const TimelineView({super.key, required this.room});
@@ -400,18 +402,70 @@ class TimelineAppBar extends StatelessWidget implements PreferredSizeWidget {
           ),
         ],
       ),
-      actions: [
-        IconButton(
-          icon: const Icon(Icons.phone_outlined, color: AppTheme.accent),
-          onPressed: () => _startCall(context, room, video: false),
-        ),
-        IconButton(
-          icon: const Icon(Icons.videocam_outlined, color: AppTheme.accent),
-          onPressed: () => _startCall(context, room, video: true),
-        ),
-        const SizedBox(width: 4),
-      ],
+      actions: room.isDirectChat
+          ? [
+              IconButton(
+                icon: const PebbleIcon(PIcon.phone, color: AppTheme.accent),
+                onPressed: () => _startCall(context, room, video: false),
+              ),
+              IconButton(
+                icon: const PebbleIcon(PIcon.video, color: AppTheme.accent),
+                onPressed: () => _startCall(context, room, video: true),
+              ),
+              const SizedBox(width: 4),
+            ]
+          : [
+              IconButton(
+                tooltip: 'group.addMember'.tr,
+                icon: const PebbleIcon(PIcon.person, color: AppTheme.accent),
+                onPressed: () => _showAddMember(context, room),
+              ),
+              const SizedBox(width: 4),
+            ],
     );
+  }
+}
+
+/// Prompt for a username and invite them into the group.
+Future<void> _showAddMember(BuildContext context, Room room) async {
+  final ctl = TextEditingController();
+  final messenger = ScaffoldMessenger.of(context);
+  final go = await showDialog<bool>(
+    context: context,
+    builder: (ctx) => AlertDialog(
+      title: Text('group.addMember'.tr),
+      content: TextField(
+        controller: ctl,
+        autofocus: true,
+        decoration: InputDecoration(
+          hintText: 'newChat.usernamePlaceholder'.tr,
+          border: const OutlineInputBorder(),
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(ctx).pop(false),
+          child: Text('common.cancel'.tr),
+        ),
+        FilledButton(
+          onPressed: () => Navigator.of(ctx).pop(true),
+          child: Text('group.invite'.tr),
+        ),
+      ],
+    ),
+  );
+  if (go != true) return;
+  final raw = ctl.text.trim();
+  if (!isValidContactInput(raw)) {
+    messenger.showSnackBar(
+        SnackBar(content: Text('newChat.badUsername'.tr)));
+    return;
+  }
+  try {
+    await room.invite(mxidFromInput(raw));
+    messenger.showSnackBar(SnackBar(content: Text('group.invited'.tr)));
+  } catch (e) {
+    messenger.showSnackBar(SnackBar(content: Text('$e')));
   }
 }
 
