@@ -30,7 +30,7 @@ class _LoginPageState extends State<LoginPage> {
   Widget build(BuildContext context) {
     final ctrl = context.watch<LoginController>();
     return Scaffold(
-      backgroundColor: AppTheme.lineGreen,
+      backgroundColor: AppTheme.bg,
       body: SafeArea(
         child: Center(
           child: SingleChildScrollView(
@@ -47,13 +47,13 @@ class _LoginPageState extends State<LoginPage> {
                     width: 96,
                     height: 96,
                     decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(24),
+                      color: AppTheme.accent,
+                      borderRadius: BorderRadius.circular(28),
                       boxShadow: const [
                         BoxShadow(
-                          color: Color(0x33000000),
-                          blurRadius: 12,
-                          offset: Offset(0, 4),
+                          color: Color(0x2222B07D),
+                          blurRadius: 16,
+                          offset: Offset(0, 6),
                         ),
                       ],
                     ),
@@ -64,7 +64,7 @@ class _LoginPageState extends State<LoginPage> {
                         style: TextStyle(
                           fontSize: 56,
                           fontWeight: FontWeight.w800,
-                          color: AppTheme.lineGreen,
+                          color: Colors.white,
                         ),
                       ),
                     ),
@@ -74,9 +74,9 @@ class _LoginPageState extends State<LoginPage> {
                     'login.title'.tr,
                     textAlign: TextAlign.center,
                     style: const TextStyle(
-                      fontSize: 36,
+                      fontSize: 34,
                       fontWeight: FontWeight.w700,
-                      color: Colors.white,
+                      color: AppTheme.ink,
                       letterSpacing: -1,
                     ),
                   ),
@@ -84,7 +84,7 @@ class _LoginPageState extends State<LoginPage> {
                     'app.tagline'.tr,
                     textAlign: TextAlign.center,
                     style: const TextStyle(
-                        fontSize: 13, color: Color(0xCCFFFFFF)),
+                        fontSize: 13, color: AppTheme.subtleText),
                   ),
                   const SizedBox(height: 40),
                   Card(
@@ -163,12 +163,12 @@ class _LoginPageState extends State<LoginPage> {
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
                       Text('login.noAccount'.tr,
-                          style: const TextStyle(color: Color(0xCCFFFFFF))),
+                          style: const TextStyle(color: AppTheme.subtleText)),
                       TextButton(
                         onPressed: () => context.push('/register'),
                         child: Text('login.createOne'.tr,
                             style: const TextStyle(
-                                color: Colors.white,
+                                color: AppTheme.accent,
                                 fontWeight: FontWeight.w600)),
                       ),
                     ],

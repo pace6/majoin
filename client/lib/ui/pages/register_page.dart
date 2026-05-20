@@ -24,10 +24,10 @@ class _RegisterPageState extends State<RegisterPage> {
   Widget build(BuildContext context) {
     final ctrl = context.watch<RegisterController>();
     return Scaffold(
-      backgroundColor: AppTheme.lineGreen,
+      backgroundColor: AppTheme.bg,
       appBar: AppBar(
         backgroundColor: Colors.transparent,
-        foregroundColor: Colors.white,
+        foregroundColor: AppTheme.ink,
         elevation: 0,
         leading: BackButton(onPressed: () => context.pop()),
       ),
@@ -48,7 +48,7 @@ class _RegisterPageState extends State<RegisterPage> {
                     style: const TextStyle(
                       fontSize: 28,
                       fontWeight: FontWeight.w700,
-                      color: Colors.white,
+                      color: AppTheme.ink,
                     ),
                   ),
                   const SizedBox(height: 24),
