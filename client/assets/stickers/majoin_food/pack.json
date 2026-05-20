@@ -1,0 +1,64 @@
+{
+  "pack": {
+    "display_name": "Yummy Food",
+    "usage": [
+      "sticker"
+    ]
+  },
+  "images": {
+    "pizza": {
+      "url": "asset:pizza.png",
+      "body": "pizza",
+      "usage": [
+        "sticker"
+      ],
+      "w": 256,
+      "h": 256
+    },
+    "burger": {
+      "url": "asset:burger.png",
+      "body": "burger",
+      "usage": [
+        "sticker"
+      ],
+      "w": 256,
+      "h": 256
+    },
+    "icecream": {
+      "url": "asset:icecream.png",
+      "body": "icecream",
+      "usage": [
+        "sticker"
+      ],
+      "w": 256,
+      "h": 256
+    },
+    "coffee": {
+      "url": "asset:coffee.png",
+      "body": "coffee",
+      "usage": [
+        "sticker"
+      ],
+      "w": 256,
+      "h": 256
+    },
+    "donut": {
+      "url": "asset:donut.png",
+      "body": "donut",
+      "usage": [
+        "sticker"
+      ],
+      "w": 256,
+      "h": 256
+    },
+    "cake": {
+      "url": "asset:cake.png",
+      "body": "cake",
+      "usage": [
+        "sticker"
+      ],
+      "w": 256,
+      "h": 256
+    }
+  }
+}

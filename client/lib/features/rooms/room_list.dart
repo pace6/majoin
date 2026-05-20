@@ -1,0 +1,304 @@
+import 'package:cached_network_image/cached_network_image.dart';
+import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
+import 'package:matrix/matrix.dart';
+import '../../core/client/matrix_client.dart';
+import '../../core/i18n/strings.dart';
+import '../../ui/theme/app_theme.dart';
+
+/// Room list panel. On mobile = full screen. On desktop = left pane.
+/// Shows joined + invited rooms; invited rows offer an "Accept" button.
+class RoomList extends StatefulWidget {
+  const RoomList({
+    super.key,
+    required this.onRoomTap,
+    this.selectedRoomId,
+  });
+
+  final void Function(Room room) onRoomTap;
+  final String? selectedRoomId;
+
+  @override
+  State<RoomList> createState() => _RoomListState();
+}
+
+class _RoomListState extends State<RoomList> {
+  late final Client _c = MatrixClientService.instance.client;
+
+  @override
+  Widget build(BuildContext context) {
+    return StreamBuilder(
+      stream: _c.onSync.stream,
+      builder: (context, _) {
+        final rooms = [..._c.rooms];
+        rooms.sort((a, b) {
+          // invites pinned to top
+          final aInv = a.membership == Membership.invite;
+          final bInv = b.membership == Membership.invite;
+          if (aInv != bInv) return aInv ? -1 : 1;
+          return (b.lastEvent?.originServerTs ?? DateTime(0))
+              .compareTo(a.lastEvent?.originServerTs ?? DateTime(0));
+        });
+
+        if (rooms.isEmpty) {
+          return Center(
+            child: Text('rooms.empty'.tr,
+                style: const TextStyle(color: Colors.black54)),
+          );
+        }
+
+        return ListView.builder(
+          itemCount: rooms.length,
+          itemBuilder: (context, i) => _RoomTile(
+            room: rooms[i],
+            selected: rooms[i].id == widget.selectedRoomId,
+            onTap: () => widget.onRoomTap(rooms[i]),
+          ),
+        );
+      },
+    );
+  }
+}
+
+class _RoomTile extends StatefulWidget {
+  const _RoomTile({
+    required this.room,
+    required this.selected,
+    required this.onTap,
+  });
+  final Room room;
+  final bool selected;
+  final VoidCallback onTap;
+
+  @override
+  State<_RoomTile> createState() => _RoomTileState();
+}
+
+class _RoomTileState extends State<_RoomTile> {
+  bool _joining = false;
+
+  Future<void> _accept() async {
+    setState(() => _joining = true);
+    try {
+      await widget.room.join();
+    } finally {
+      if (mounted) setState(() => _joining = false);
+    }
+  }
+
+  Future<void> _decline() async {
+    await widget.room.leave();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final r = widget.room;
+    final invited = r.membership == Membership.invite;
+    final last = r.lastEvent;
+    final preview = invited
+        ? 'rooms.invitation'.tr
+        : last == null
+            ? ''
+            : (last.type == 'm.sticker'
+                ? 'msg.sticker'.tr
+                : last.type == 'app.majoin.flex'
+                    ? 'msg.flex'.tr
+                    : last.body);
+
+    final ts = r.lastEvent?.originServerTs;
+    final timeLabel = ts == null ? '' : _formatTime(ts);
+
+    return InkWell(
+      onTap: invited ? _accept : widget.onTap,
+      child: Container(
+        color: widget.selected ? const Color(0xFFF0F8F2) : Colors.white,
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            _Avatar(
+              url: r.avatar?.toString(),
+              name: r.getLocalizedDisplayname(),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    r.getLocalizedDisplayname(),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w600,
+                      color: Color(0xFF1A1A1A),
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    preview,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      fontSize: 13,
+                      color: invited
+                          ? AppTheme.lineGreen
+                          : AppTheme.subtleText,
+                      fontWeight:
+                          invited ? FontWeight.w600 : FontWeight.normal,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(width: 8),
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: [
+                Text(
+                  timeLabel,
+                  style: const TextStyle(
+                      fontSize: 11, color: AppTheme.subtleText),
+                ),
+                const SizedBox(height: 6),
+                if (invited)
+                  _joining
+                      ? const SizedBox(
+                          height: 18,
+                          width: 18,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            _MiniAction(
+                              icon: Icons.close,
+                              color: Colors.red,
+                              onTap: _decline,
+                            ),
+                            const SizedBox(width: 4),
+                            _MiniAction(
+                              icon: Icons.check,
+                              color: AppTheme.lineGreen,
+                              onTap: _accept,
+                            ),
+                          ],
+                        )
+                else if (r.notificationCount > 0)
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 6, vertical: 2),
+                    decoration: BoxDecoration(
+                      color: AppTheme.lineGreen,
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: Text(
+                      '${r.notificationCount}',
+                      style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 11,
+                          fontWeight: FontWeight.w600),
+                    ),
+                  ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  static String _formatTime(DateTime ts) {
+    final now = DateTime.now();
+    final sameDay = ts.year == now.year &&
+        ts.month == now.month &&
+        ts.day == now.day;
+    if (sameDay) return DateFormat.Hm().format(ts);
+    final diff = now.difference(ts);
+    if (diff.inDays < 7) return DateFormat.E().format(ts);
+    return DateFormat.Md().format(ts);
+  }
+}
+
+class _MiniAction extends StatelessWidget {
+  const _MiniAction({
+    required this.icon,
+    required this.color,
+    required this.onTap,
+  });
+  final IconData icon;
+  final Color color;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(14),
+      child: Padding(
+        padding: const EdgeInsets.all(4),
+        child: Icon(icon, color: color, size: 20),
+      ),
+    );
+  }
+}
+
+class _Avatar extends StatelessWidget {
+  const _Avatar({required this.url, required this.name});
+  final String? url;
+  final String name;
+
+  @override
+  Widget build(BuildContext context) {
+    final letter = name.isEmpty ? '?' : name.characters.first.toUpperCase();
+    final color = _colorFor(name);
+    final radius = BorderRadius.circular(12);
+    final size = 48.0;
+    if (url != null && url!.startsWith('http')) {
+      return ClipRRect(
+        borderRadius: radius,
+        child: CachedNetworkImage(
+          imageUrl: url!,
+          width: size,
+          height: size,
+          fit: BoxFit.cover,
+        ),
+      );
+    }
+    return Container(
+      width: size,
+      height: size,
+      decoration: BoxDecoration(
+        color: color,
+        borderRadius: radius,
+      ),
+      alignment: Alignment.center,
+      child: Text(
+        letter,
+        style: const TextStyle(
+          color: Colors.white,
+          fontSize: 20,
+          fontWeight: FontWeight.w600,
+        ),
+      ),
+    );
+  }
+
+  static Color _colorFor(String s) {
+    const palette = [
+      Color(0xFFE57373),
+      Color(0xFF64B5F6),
+      Color(0xFF81C784),
+      Color(0xFFFFB74D),
+      Color(0xFFBA68C8),
+      Color(0xFF4DB6AC),
+      Color(0xFFA1887F),
+    ];
+    var h = 0;
+    for (final c in s.codeUnits) {
+      h = (h * 31 + c) & 0x7fffffff;
+    }
+    return palette[h % palette.length];
+  }
+}

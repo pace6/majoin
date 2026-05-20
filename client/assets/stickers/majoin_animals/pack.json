@@ -1,0 +1,64 @@
+{
+  "pack": {
+    "display_name": "Cute Animals",
+    "usage": [
+      "sticker"
+    ]
+  },
+  "images": {
+    "cat": {
+      "url": "asset:cat.png",
+      "body": "cat",
+      "usage": [
+        "sticker"
+      ],
+      "w": 256,
+      "h": 256
+    },
+    "dog": {
+      "url": "asset:dog.png",
+      "body": "dog",
+      "usage": [
+        "sticker"
+      ],
+      "w": 256,
+      "h": 256
+    },
+    "rabbit": {
+      "url": "asset:rabbit.png",
+      "body": "rabbit",
+      "usage": [
+        "sticker"
+      ],
+      "w": 256,
+      "h": 256
+    },
+    "bear": {
+      "url": "asset:bear.png",
+      "body": "bear",
+      "usage": [
+        "sticker"
+      ],
+      "w": 256,
+      "h": 256
+    },
+    "panda": {
+      "url": "asset:panda.png",
+      "body": "panda",
+      "usage": [
+        "sticker"
+      ],
+      "w": 256,
+      "h": 256
+    },
+    "fox": {
+      "url": "asset:fox.png",
+      "body": "fox",
+      "usage": [
+        "sticker"
+      ],
+      "w": 256,
+      "h": 256
+    }
+  }
+}

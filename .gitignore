@@ -1,0 +1,25 @@
+# Infra — Matrix deploy state
+infra/synapse/data/
+infra/synapse/pgdata/
+infra/sygnal/keys/
+
+# Services
+services/*/.venv/
+services/*/stickers.db
+services/**/__pycache__/
+
+# Flutter client
+client/.dart_tool/
+client/.flutter-plugins
+client/.flutter-plugins-dependencies
+client/build/
+client/.idea/
+client/ios/Pods/
+client/ios/.symlinks/
+client/macos/Pods/
+
+# Tools
+tools/**/__pycache__/
+
+*.iml
+.DS_Store

@@ -1,0 +1,44 @@
+# Sygnal push gateway config. Dev placeholder — replace api_key + APNs cert.
+# Docs: https://github.com/matrix-org/sygnal
+http:
+  bind_addresses: ['0.0.0.0']
+  port: 5000
+
+log:
+  setup:
+    version: 1
+    formatters:
+      normal:
+        format: "%(asctime)s [%(process)d] %(levelname)-5s %(name)s %(message)s"
+    handlers:
+      stdout:
+        class: logging.StreamHandler
+        formatter: normal
+        stream: ext://sys.stdout
+    loggers:
+      sygnal:
+        propagate: false
+        handlers: [stdout]
+    root:
+      level: INFO
+      handlers: [stdout]
+  access:
+    x_forwarded_for: false
+
+metrics:
+  prometheus:
+    enabled: false
+
+apps:
+  # Android — replace api_key with your FCM v1 service account JSON path or legacy key.
+  app.majoin.android:
+    type: gcm
+    api_key: "REPLACE_WITH_FCM_KEY"
+
+  # iOS — drop cert.p12 in ./keys/ and adjust.
+  app.majoin.ios:
+    type: apns
+    certfile: /sygnal/keys/apns.p12
+    # Use APNs sandbox for dev builds:
+    platform: sandbox
+    topic: app.majoin

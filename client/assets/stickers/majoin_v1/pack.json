@@ -1,0 +1,15 @@
+{
+  "pack": {
+    "display_name": "Majoin v1",
+    "usage": ["sticker"],
+    "attribution": "Majoin placeholder set"
+  },
+  "images": {
+    "smile":    { "url": "asset:smile.png",    "body": "smile",    "usage": ["sticker"], "w": 256, "h": 256 },
+    "love":     { "url": "asset:love.png",     "body": "love",     "usage": ["sticker"], "w": 256, "h": 256 },
+    "cry":      { "url": "asset:cry.png",      "body": "cry",      "usage": ["sticker"], "w": 256, "h": 256 },
+    "thumbsup": { "url": "asset:thumbsup.png", "body": "thumbsup", "usage": ["sticker"], "w": 256, "h": 256 },
+    "shock":    { "url": "asset:shock.png",    "body": "shock",    "usage": ["sticker"], "w": 256, "h": 256 },
+    "party":    { "url": "asset:party.png",    "body": "party",    "usage": ["sticker"], "w": 256, "h": 256 }
+  }
+}

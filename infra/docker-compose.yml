@@ -1,0 +1,51 @@
+name: majoin
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: synapse
+      POSTGRES_PASSWORD: synapse
+      POSTGRES_DB: synapse
+      POSTGRES_INITDB_ARGS: "--encoding=UTF8 --locale=C"
+    volumes:
+      - ./synapse/pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U synapse"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  synapse:
+    image: matrixdotorg/synapse:latest
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      SYNAPSE_SERVER_NAME: localhost
+      SYNAPSE_REPORT_STATS: "no"
+      UID: "991"
+      GID: "991"
+    volumes:
+      - ./synapse/data:/data
+    ports:
+      - "8008:8008"
+
+  sygnal:
+    image: matrixdotorg/sygnal:latest
+    restart: unless-stopped
+    volumes:
+      - ./sygnal/sygnal.yaml:/sygnal/sygnal.yaml:ro
+      - ./sygnal/keys:/sygnal/keys:ro
+    ports:
+      - "5000:5000"
+
+  coturn:
+    image: coturn/coturn:latest
+    restart: unless-stopped
+    network_mode: host
+    volumes:
+      - ./coturn/turnserver.conf:/etc/turnserver.conf:ro
+    command: ["-c", "/etc/turnserver.conf"]

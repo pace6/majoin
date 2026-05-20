@@ -1,0 +1,62 @@
+name: majoin
+description: "Majoin — Line-style chat over Matrix."
+publish_to: 'none'
+version: 0.1.0+1
+
+environment:
+  sdk: ^3.11.5
+
+dependencies:
+  flutter:
+    sdk: flutter
+  flutter_localizations:
+    sdk: flutter
+
+  # Matrix client (Famedly Dart SDK).
+  matrix: ^7.1.2
+
+  # Storage / state.
+  hive: ^2.2.3
+  hive_flutter: ^1.1.0
+  path_provider: ^2.1.5
+  shared_preferences: ^2.3.3
+  flutter_secure_storage: ^9.2.4
+
+  # Routing / state.
+  go_router: ^16.2.0
+  provider: ^6.1.5
+
+  # Media / pickers.
+  image_picker: ^1.1.2
+  file_picker: ^10.2.0
+  cached_network_image: ^3.4.1
+
+  # Native bits.
+  flutter_local_notifications: ^19.4.2
+
+  # UI helpers.
+  flutter_adaptive_scaffold: ^0.3.3
+  cupertino_icons: ^1.0.8
+  intl: ^0.20.2
+  sqflite: ^2.4.2+1
+  sqflite_common_ffi: ^2.3.7+1
+  path: ^1.9.1
+  flutter_webrtc: ^1.4.1
+  permission_handler: ^12.0.1
+  webrtc_interface: ^1.5.1
+  record: ^6.2.0
+  just_audio: ^0.10.5
+  video_player: ^2.11.1
+  http: ^1.6.0
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^6.0.0
+
+flutter:
+  uses-material-design: true
+  assets:
+    # majoin_v1 is bundled as the offline default pack.
+    # animals/food packs ship via the sticker API (uploaded to Synapse).
+    - assets/stickers/majoin_v1/

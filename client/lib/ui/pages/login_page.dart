@@ -1,0 +1,217 @@
+import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
+import 'package:provider/provider.dart';
+import '../../core/auth/login_controller.dart';
+import '../../core/config.dart';
+import '../../core/i18n/strings.dart';
+import '../../core/storage/prefs.dart';
+import '../theme/app_theme.dart';
+
+class LoginPage extends StatefulWidget {
+  const LoginPage({super.key});
+
+  @override
+  State<LoginPage> createState() => _LoginPageState();
+}
+
+class _LoginPageState extends State<LoginPage> {
+  final _user = TextEditingController();
+  final _pass = TextEditingController();
+
+  @override
+  void initState() {
+    super.initState();
+    Prefs.lastUser().then((v) {
+      if (v != null && mounted) _user.text = v;
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final ctrl = context.watch<LoginController>();
+    return Scaffold(
+      backgroundColor: AppTheme.lineGreen,
+      body: SafeArea(
+        child: Center(
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.all(24),
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 360),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  const SizedBox(height: 40),
+                  // Logo mark
+                  Container(
+                    width: 96,
+                    height: 96,
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(24),
+                      boxShadow: const [
+                        BoxShadow(
+                          color: Color(0x33000000),
+                          blurRadius: 12,
+                          offset: Offset(0, 4),
+                        ),
+                      ],
+                    ),
+                    margin: const EdgeInsets.symmetric(horizontal: 110),
+                    child: const Center(
+                      child: Text(
+                        'M',
+                        style: TextStyle(
+                          fontSize: 56,
+                          fontWeight: FontWeight.w800,
+                          color: AppTheme.lineGreen,
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  Text(
+                    'login.title'.tr,
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(
+                      fontSize: 36,
+                      fontWeight: FontWeight.w700,
+                      color: Colors.white,
+                      letterSpacing: -1,
+                    ),
+                  ),
+                  Text(
+                    'app.tagline'.tr,
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(
+                        fontSize: 13, color: Color(0xCCFFFFFF)),
+                  ),
+                  const SizedBox(height: 40),
+                  Card(
+                    elevation: 0,
+                    margin: EdgeInsets.zero,
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(16)),
+                    child: Padding(
+                      padding: const EdgeInsets.all(16),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          _field(_user, 'login.username'.tr,
+                              icon: Icons.person_outline),
+                          const SizedBox(height: 12),
+                          _field(_pass, 'login.password'.tr,
+                              icon: Icons.lock_outline, obscure: true),
+                          const SizedBox(height: 8),
+                          _serverLabel(),
+                          const SizedBox(height: 12),
+                          if (ctrl.error != null)
+                            Padding(
+                              padding: const EdgeInsets.only(bottom: 8),
+                              child: Text(
+                                ctrl.error!,
+                                style: const TextStyle(
+                                    color: Colors.red, fontSize: 12),
+                              ),
+                            ),
+                          SizedBox(
+                            height: 48,
+                            child: FilledButton(
+                              style: FilledButton.styleFrom(
+                                backgroundColor: AppTheme.lineGreen,
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(24),
+                                ),
+                              ),
+                              onPressed: ctrl.busy
+                                  ? null
+                                  : () async {
+                                      final ok = await ctrl.submit(
+                                        homeserver: AppConfig.homeserver,
+                                        user: _user.text.trim(),
+                                        password: _pass.text,
+                                      );
+                                      if (ok && mounted) {
+                                        await Prefs.setLastUser(
+                                            _user.text.trim());
+                                        if (context.mounted) {
+                                          context.go('/rooms');
+                                        }
+                                      }
+                                    },
+                              child: ctrl.busy
+                                  ? const SizedBox(
+                                      height: 20,
+                                      width: 20,
+                                      child: CircularProgressIndicator(
+                                          strokeWidth: 2,
+                                          color: Colors.white),
+                                    )
+                                  : Text('login.signIn'.tr,
+                                      style: const TextStyle(
+                                          fontSize: 15,
+                                          fontWeight: FontWeight.w600)),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  const SizedBox(height: 12),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Text('login.noAccount'.tr,
+                          style: const TextStyle(color: Color(0xCCFFFFFF))),
+                      TextButton(
+                        onPressed: () => context.push('/register'),
+                        child: Text('login.createOne'.tr,
+                            style: const TextStyle(
+                                color: Colors.white,
+                                fontWeight: FontWeight.w600)),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _serverLabel() {
+    final host = Uri.parse(AppConfig.homeserver).host;
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 4),
+      child: Row(
+        children: [
+          const Icon(Icons.cloud_outlined, size: 14, color: Colors.black54),
+          const SizedBox(width: 6),
+          Text(host,
+              style: const TextStyle(fontSize: 12, color: Colors.black54)),
+        ],
+      ),
+    );
+  }
+
+  Widget _field(TextEditingController c, String label,
+      {IconData? icon, bool obscure = false}) {
+    return TextField(
+      controller: c,
+      obscureText: obscure,
+      decoration: InputDecoration(
+        labelText: label,
+        prefixIcon: icon == null ? null : Icon(icon, size: 20),
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+        ),
+        contentPadding:
+            const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
+        isDense: true,
+      ),
+    );
+  }
+}

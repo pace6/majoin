@@ -1,0 +1,45 @@
+# Reference Caddyfile for the VPS. The live file is /etc/caddy/Caddyfile.
+# Cloudflare Origin certs are reused (no Let's Encrypt for proxied domains).
+
+{
+	email chatchainaenudorn@gmail.com
+
+	servers {
+		client_ip_headers CF-Connecting-IP
+		trusted_proxies static 0.0.0.0/0
+	}
+}
+
+# ---- chat.tokens2.io (Matrix Synapse + sticker API) ----
+chat.tokens2.io {
+	tls /etc/ssl/cloudflare/tokens2.io.pem /etc/ssl/cloudflare/tokens2.io.key
+	encode gzip
+
+	# Sticker store API (FastAPI on :8410) — must come before /_matrix/*
+	handle /api/stickers/* {
+		reverse_proxy 127.0.0.1:8410
+	}
+
+	handle /.well-known/matrix/server {
+		header Content-Type application/json
+		respond `{"m.server":"chat.tokens2.io:443"}` 200
+	}
+	handle /.well-known/matrix/client {
+		header Content-Type application/json
+		header Access-Control-Allow-Origin *
+		respond `{"m.homeserver":{"base_url":"https://chat.tokens2.io"}}` 200
+	}
+
+	handle /_matrix/* {
+		request_body {
+			max_size 50MB
+		}
+		reverse_proxy 127.0.0.1:8008
+	}
+	handle /_synapse/client/* {
+		reverse_proxy 127.0.0.1:8008
+	}
+}
+
+# Other sites (admin/bz/lakkana/salesdee/shop/taemdee) live in the live
+# Caddyfile on the VPS — omitted here, not part of the majoin project.
