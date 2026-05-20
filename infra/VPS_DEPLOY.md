@@ -306,28 +306,38 @@ sudo systemctl enable --now majoin-livekit majoin-lk-jwt
 
 Deploys are automated by `.github/workflows/deploy-majoin-api.yml` — a push to
 `main` rsyncs `services/majoin/` to the VPS and runs `deploy/deploy.sh`. Only
-the one-time bootstrap below is manual. Secrets live in `/opt/majoin/.env`
-(systemd `EnvironmentFile=`), never in the unit file or GitHub.
+the one-time bootstrap below is manual.
+
+`VPS_USER` (the CI SSH user) owns the code and the `.venv` and is the systemd
+unit's `User=` — there is no separate service account. Secrets live in
+`/opt/majoin/.env` (systemd `EnvironmentFile=`), never in the unit or GitHub.
+
+Run the bootstrap **as `VPS_USER`**, from a checkout of the repo:
 
 ```bash
-# uv — must be on a system path; the systemd unit calls /usr/local/bin/uv
-curl -LsSf https://astral.sh/uv/install.sh | sudo sh
-sudo ln -sf "$(which uv)" /usr/local/bin/uv
+# uv — installed for this user, symlinked onto a system path for systemd
+curl -LsSf https://astral.sh/uv/install.sh | sh
+sudo ln -sf "$HOME/.local/bin/uv" /usr/local/bin/uv
 
-# dir + env file
+# deploy dir — owned by VPS_USER so CI rsync can write into it
 sudo mkdir -p /opt/majoin
-sudo cp services/majoin/deploy/.env.example /opt/majoin/.env
-sudo nano /opt/majoin/.env          # set DATABASE_URL + STICKER_ADMIN_KEY
-sudo chmod 600 /opt/majoin/.env
+sudo chown "$(id -un):$(id -gn)" /opt/majoin
 
-# systemd unit
+# env file — owned by VPS_USER; deploy.sh sources it
+cp services/majoin/deploy/.env.example /opt/majoin/.env
+nano /opt/majoin/.env               # set DATABASE_URL + STICKER_ADMIN_KEY
+chmod 600 /opt/majoin/.env
+
+# systemd unit — User= set to VPS_USER
 sudo cp services/majoin/deploy/majoin.service /etc/systemd/system/
+sudo sed -i "s/REPLACE_WITH_DEPLOY_USER/$(id -un)/" /etc/systemd/system/majoin.service
 sudo systemctl daemon-reload
 sudo systemctl enable majoin
 ```
 
-Add these GitHub repo secrets: `VPS_SSH_KEY`, `VPS_HOST`, `VPS_USER` (root),
-`DEPLOY_DIR` (`/opt/majoin`). Then push to `main` — CI runs the first deploy
+Add these GitHub repo secrets: `VPS_SSH_KEY`, `VPS_HOST`, `VPS_USER` (a
+sudoer), `DEPLOY_DIR` (`/opt/majoin`). `VPS_USER` needs passwordless sudo for
+`systemctl restart majoin`. Then push to `main` — CI runs the first deploy
 (rsync code → `uv sync` → `alembic upgrade head` → start → health check).
 
 See `services/majoin/README.md` for pack uploads.

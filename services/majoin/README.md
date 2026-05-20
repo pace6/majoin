@@ -26,30 +26,40 @@ upgrade → restart → health check).
 |--------|-------|
 | `VPS_SSH_KEY` | private SSH key (ed25519) |
 | `VPS_HOST` | VPS IP/hostname |
-| `VPS_USER` | SSH user — `root` |
+| `VPS_USER` | SSH/deploy user — a sudoer; also runs the service |
 | `DEPLOY_DIR` | target dir on the VPS, e.g. `/opt/majoin` |
 
 ### One-time VPS bootstrap
 
-Secrets live in `$DEPLOY_DIR/.env` (read by systemd `EnvironmentFile=` and by
-`deploy.sh`) — never in the unit file or GitHub. See `deploy/.env.example`.
+Run **as `VPS_USER`** (the same account CI SSHes in as). That user owns the
+code, the `.venv`, and is the systemd unit's `User=` — there is no separate
+service account. Secrets live in `$DEPLOY_DIR/.env` (read by systemd
+`EnvironmentFile=` and by `deploy.sh`) — never in the unit file or GitHub.
+
+From a checkout of this repo, in `services/majoin`:
 
 ```bash
-# uv — must be on a system path; the systemd unit calls /usr/local/bin/uv
-curl -LsSf https://astral.sh/uv/install.sh | sudo sh
-sudo ln -sf "$(which uv)" /usr/local/bin/uv
+# uv — installed for this user, symlinked onto a system path for systemd
+curl -LsSf https://astral.sh/uv/install.sh | sh
+sudo ln -sf "$HOME/.local/bin/uv" /usr/local/bin/uv
 
-# dir + env
+# deploy dir — owned by VPS_USER so CI rsync can write into it
 sudo mkdir -p /opt/majoin
-sudo cp deploy/.env.example /opt/majoin/.env
-sudo nano /opt/majoin/.env          # set DATABASE_URL + STICKER_ADMIN_KEY
-sudo chmod 600 /opt/majoin/.env
+sudo chown "$(id -un):$(id -gn)" /opt/majoin
 
-# systemd unit (edit paths if DEPLOY_DIR is not /opt/majoin)
+# env file — owned by VPS_USER; deploy.sh sources it
+cp deploy/.env.example /opt/majoin/.env
+nano /opt/majoin/.env               # set DATABASE_URL + STICKER_ADMIN_KEY
+chmod 600 /opt/majoin/.env
+
+# systemd unit — User= is set to VPS_USER
 sudo cp deploy/majoin.service /etc/systemd/system/
+sudo sed -i "s/REPLACE_WITH_DEPLOY_USER/$(id -un)/" /etc/systemd/system/majoin.service
 sudo systemctl daemon-reload
 sudo systemctl enable majoin
 ```
+
+`VPS_USER` needs passwordless sudo for `systemctl restart majoin` (deploy.sh).
 
 Then push to `main` (or run the workflow manually) — CI handles the first and
 every subsequent deploy.

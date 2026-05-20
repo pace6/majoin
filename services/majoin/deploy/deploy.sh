@@ -12,9 +12,11 @@
 #   DATABASE_URL               Postgres DSN (required — alembic runs outside systemd)
 #   STICKER_ADMIN_KEY          consumed by the service, not this script
 #   SLACK_DEPLOY_WEBHOOK_URL   Slack incoming-webhook URL — silent if unset
+# The deploy/SSH user owns the code, runs uv, and is the systemd unit's
+# User= — no separate service account.
+#
 # Optional environment:
 #   SERVICE_NAME   systemd unit name (default: majoin)
-#   SERVICE_USER   unix user that owns the venv (default: www-data)
 #   HEALTH_URL     endpoint polled after restart (default: chat.tokens2.io health)
 #   DEPLOY_SHA     commit SHA, passed by CI — shown in the Slack message
 #
@@ -23,7 +25,6 @@
 set -euo pipefail
 
 SERVICE_NAME="${SERVICE_NAME:-majoin}"
-SERVICE_USER="${SERVICE_USER:-www-data}"
 SLACK_USERNAME="${SLACK_USERNAME:-majoin-deploy}"
 HEALTH_URL="${HEALTH_URL:-https://chat.tokens2.io/api/stickers/health}"
 START_TS="$(date +%s)"
@@ -75,15 +76,14 @@ trap on_error ERR
 echo "Deploying majoin in $PROJECT_ROOT..."
 
 # ─── Phases ──────────────────────────────────────────────────────────────
-# CI rsyncs as root; hand the tree back to the service user before uv touches it.
-PHASE="chown"
-chown -R "${SERVICE_USER}:${SERVICE_USER}" "$PROJECT_ROOT"
-
+# CI rsyncs as the deploy user, so the tree is already owned correctly —
+# uv and alembic run directly as that user. DATABASE_URL was exported from
+# .env above, so alembic picks it up.
 PHASE="uv sync"
-sudo -u "$SERVICE_USER" "$UV_BIN" sync --frozen
+"$UV_BIN" sync --frozen
 
 PHASE="alembic upgrade head"
-sudo -u "$SERVICE_USER" DATABASE_URL="$DATABASE_URL" "$UV_BIN" run alembic upgrade head
+"$UV_BIN" run alembic upgrade head
 
 # restart (NOT reload) so the DB driver drops its connection pool and the
 # new uvicorn process picks up the new schema.

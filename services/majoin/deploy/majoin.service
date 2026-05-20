@@ -4,7 +4,9 @@ After=network.target
 
 [Service]
 Type=simple
-User=www-data
+# Same user as the CI deploy/SSH user (VPS_USER) — it owns the code and the
+# .venv. Replace at bootstrap.
+User=REPLACE_WITH_DEPLOY_USER
 WorkingDirectory=/opt/majoin
 # Secrets live in /opt/majoin/.env (not committed) — STICKER_ADMIN_KEY,
 # DATABASE_URL. See deploy/.env.example for the format.
