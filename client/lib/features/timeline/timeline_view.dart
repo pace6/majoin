@@ -11,6 +11,7 @@ import 'message_bubble.dart';
 import 'timeline_state.dart';
 import '../../core/client/matrix_client.dart';
 import '../../ui/theme/app_theme.dart';
+import '../../ui/widgets/mxc_image.dart';
 
 class TimelineView extends StatefulWidget {
   const TimelineView({super.key, required this.room});
@@ -374,35 +375,41 @@ class TimelineAppBar extends StatelessWidget implements PreferredSizeWidget {
       titleSpacing: 0,
       title: Row(
         children: [
-          CircleAvatar(
-            radius: 14,
-            backgroundColor: const Color(0xFFE0E0E0),
-            child: Text(
-              room.getLocalizedDisplayname().characters.first.toUpperCase(),
-              style: const TextStyle(fontSize: 12, color: Color(0xFF444444)),
-            ),
-          ),
+          _RoomHeaderAvatar(room: room),
           const SizedBox(width: 10),
           Expanded(
-            child: Text(
-              room.getLocalizedDisplayname(),
-              style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  room.getLocalizedDisplayname(),
+                  style: const TextStyle(
+                      fontSize: 15.5, fontWeight: FontWeight.w600),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                if (!room.isDirectChat)
+                  Text(
+                    '${room.summary.mJoinedMemberCount ?? 0} ${'home.members'.tr}',
+                    style: const TextStyle(
+                        fontSize: 11.5, color: AppTheme.subtleText),
+                  ),
+              ],
             ),
           ),
         ],
       ),
       actions: [
         IconButton(
-          icon: const Icon(Icons.phone_outlined),
+          icon: const Icon(Icons.phone_outlined, color: AppTheme.accent),
           onPressed: () => _startCall(context, room, video: false),
         ),
         IconButton(
-          icon: const Icon(Icons.videocam_outlined),
+          icon: const Icon(Icons.videocam_outlined, color: AppTheme.accent),
           onPressed: () => _startCall(context, room, video: true),
         ),
-        IconButton(icon: const Icon(Icons.menu), onPressed: () {}),
+        const SizedBox(width: 4),
       ],
     );
   }
@@ -417,5 +424,40 @@ Future<void> _startCall(BuildContext context, Room room,
     return;
   }
   await CallService.instance.startCall(room, video: video);
+}
+
+/// 36px room avatar in the chat header — round for DMs, soft-square for groups.
+class _RoomHeaderAvatar extends StatelessWidget {
+  const _RoomHeaderAvatar({required this.room});
+  final Room room;
+
+  @override
+  Widget build(BuildContext context) {
+    final name = room.getLocalizedDisplayname();
+    final mxc = room.avatar?.toString();
+    final radius = room.isDirectChat
+        ? BorderRadius.circular(18)
+        : BorderRadius.circular(10);
+    return ClipRRect(
+      borderRadius: radius,
+      child: SizedBox(
+        width: 36,
+        height: 36,
+        child: mxc != null && mxc.isNotEmpty
+            ? MxcImage(url: mxc, width: 36, height: 36)
+            : Container(
+                color: AppTheme.accentSoft,
+                alignment: Alignment.center,
+                child: Text(
+                  name.isEmpty ? '?' : name.characters.first.toUpperCase(),
+                  style: const TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w700,
+                      color: AppTheme.accentDeep),
+                ),
+              ),
+      ),
+    );
+  }
 }
 

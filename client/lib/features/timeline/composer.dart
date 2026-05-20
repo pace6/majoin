@@ -296,8 +296,9 @@ class _ComposerState extends State<Composer> {
       top: false,
       child: Container(
         decoration: const BoxDecoration(
-          color: Colors.white,
-          border: Border(top: BorderSide(color: Color(0xFFEBEBEB), width: 0.5)),
+          color: AppTheme.bg,
+          border:
+              Border(top: BorderSide(color: AppTheme.dividerColor, width: 0.5)),
         ),
         child: Column(
           mainAxisSize: MainAxisSize.min,
@@ -310,77 +311,93 @@ class _ComposerState extends State<Composer> {
                 onClear: () => widget.ui.clearReply(),
               ),
             Padding(
-              padding: const EdgeInsets.fromLTRB(4, 6, 4, 6),
+              padding: const EdgeInsets.fromLTRB(10, 6, 10, 6),
               child: Row(
-          crossAxisAlignment: CrossAxisAlignment.end,
-          children: [
-            IconButton(
-              icon: const Icon(Icons.add, color: Color(0xFF666666)),
-              onPressed: _showAttachSheet,
-              tooltip: 'composer.attach'.tr,
-            ),
-            IconButton(
-              icon: const Icon(Icons.photo_camera_outlined,
-                  color: Color(0xFF666666)),
-              onPressed: () => _pickAndSendPhoto(ImageSource.camera),
-              tooltip: 'composer.takePhoto'.tr,
-            ),
-            IconButton(
-              icon: const Icon(Icons.photo_outlined, color: Color(0xFF666666)),
-              onPressed: () => _pickAndSendPhoto(ImageSource.gallery),
-              tooltip: 'composer.photoGallery'.tr,
-            ),
-            Expanded(
-              child: Focus(
-                onKeyEvent: (node, event) {
-                  if (event is KeyDownEvent &&
-                      event.logicalKey == LogicalKeyboardKey.enter &&
-                      !HardwareKeyboard.instance.isShiftPressed) {
-                    if (_canSend) _sendText();
-                    return KeyEventResult.handled;
-                  }
-                  return KeyEventResult.ignored;
-                },
-                child: TextField(
-                controller: _ctl,
-                minLines: 1,
-                maxLines: 5,
-                textInputAction: TextInputAction.newline,
-                style: const TextStyle(fontSize: 15),
-                decoration: InputDecoration(
-                  hintText: 'composer.hint'.tr,
-                  hintStyle: const TextStyle(color: Color(0xFFB0B0B0)),
-                  filled: true,
-                  fillColor: const Color(0xFFF5F5F5),
-                  isDense: true,
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(22),
-                    borderSide: BorderSide.none,
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  // Attach — opens the camera/photo/file/flex sheet.
+                  _CircleButton(
+                    icon: Icons.add,
+                    bg: const Color(0x0D000000),
+                    fg: AppTheme.subtleText,
+                    onTap: _showAttachSheet,
+                    tooltip: 'composer.attach'.tr,
                   ),
-                  contentPadding: const EdgeInsets.symmetric(
-                      horizontal: 14, vertical: 10),
-                  suffixIcon: IconButton(
-                    icon: const Icon(Icons.emoji_emotions_outlined,
-                        size: 22, color: Color(0xFF888888)),
-                    onPressed: () async {
-                      final s = await StickerPickerSheet.show(context);
-                      if (s != null) await _sticker.send(widget.room, s);
-                    },
+                  const SizedBox(width: 8),
+                  // Input pill with the sticker button inside.
+                  Expanded(
+                    child: Container(
+                      constraints: const BoxConstraints(minHeight: 40),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(20),
+                        border: Border.all(color: AppTheme.dividerColor),
+                      ),
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.end,
+                        children: [
+                          Expanded(
+                            child: Focus(
+                              onKeyEvent: (node, event) {
+                                if (event is KeyDownEvent &&
+                                    event.logicalKey ==
+                                        LogicalKeyboardKey.enter &&
+                                    !HardwareKeyboard
+                                        .instance.isShiftPressed) {
+                                  if (_canSend) _sendText();
+                                  return KeyEventResult.handled;
+                                }
+                                return KeyEventResult.ignored;
+                              },
+                              child: TextField(
+                                controller: _ctl,
+                                minLines: 1,
+                                maxLines: 5,
+                                textInputAction: TextInputAction.newline,
+                                style: const TextStyle(fontSize: 15),
+                                decoration: InputDecoration(
+                                  hintText: 'composer.hint'.tr,
+                                  hintStyle: const TextStyle(
+                                      color: AppTheme.subtleText),
+                                  isDense: true,
+                                  border: InputBorder.none,
+                                  contentPadding: const EdgeInsets.fromLTRB(
+                                      14, 10, 4, 10),
+                                ),
+                              ),
+                            ),
+                          ),
+                          IconButton(
+                            icon: const Icon(Icons.emoji_emotions_outlined,
+                                size: 22, color: AppTheme.subtleText),
+                            onPressed: () async {
+                              final s =
+                                  await StickerPickerSheet.show(context);
+                              if (s != null) {
+                                await _sticker.send(widget.room, s);
+                              }
+                            },
+                          ),
+                        ],
+                      ),
+                    ),
                   ),
-                ),
-                ),
-              ),
-            ),
-            IconButton(
-              icon: Icon(
-                _canSend ? Icons.send_rounded : Icons.mic_none,
-                color: _canSend ? const Color(0xFF06C755) : const Color(0xFF888888),
-              ),
-              onPressed: _canSend
-                  ? _sendText
-                  : () => setState(() => _recording = true),
-            ),
-          ],
+                  const SizedBox(width: 8),
+                  // Send when there's text, otherwise voice-record.
+                  _canSend
+                      ? _CircleButton(
+                          icon: Icons.send_rounded,
+                          bg: AppTheme.accent,
+                          fg: Colors.white,
+                          onTap: _sendText,
+                        )
+                      : _CircleButton(
+                          icon: Icons.mic_none,
+                          bg: const Color(0x0D000000),
+                          fg: AppTheme.subtleText,
+                          onTap: () => setState(() => _recording = true),
+                        ),
+                ],
               ),
             ),
           ],
@@ -469,5 +486,36 @@ class _ReplyPreview extends StatelessWidget {
         ],
       ),
     );
+  }
+}
+
+/// Round 40px composer button (attach / send / mic).
+class _CircleButton extends StatelessWidget {
+  const _CircleButton({
+    required this.icon,
+    required this.bg,
+    required this.fg,
+    required this.onTap,
+    this.tooltip,
+  });
+  final IconData icon;
+  final Color bg;
+  final Color fg;
+  final VoidCallback onTap;
+  final String? tooltip;
+
+  @override
+  Widget build(BuildContext context) {
+    final btn = InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(20),
+      child: Container(
+        width: 40,
+        height: 40,
+        decoration: BoxDecoration(color: bg, shape: BoxShape.circle),
+        child: Icon(icon, size: 20, color: fg),
+      ),
+    );
+    return tooltip == null ? btn : Tooltip(message: tooltip!, child: btn);
   }
 }
