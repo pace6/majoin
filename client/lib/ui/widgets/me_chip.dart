@@ -65,7 +65,7 @@ class _MeChipState extends State<MeChip> {
             children: [
               Text(name,
                   style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
-              Text(mxid,
+              Text(_localpart(mxid),
                   style: const TextStyle(fontSize: 11, color: Colors.black54)),
             ],
           ),

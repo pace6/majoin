@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../core/client/matrix_client.dart';
 import '../../core/i18n/strings.dart';
+import '../../core/util/mxid.dart';
 
 /// Entry sheet — choose Direct chat or Group room. Returns the new/reused
 /// room id on success.
@@ -34,7 +35,7 @@ Future<String?> showNewChatDialog(BuildContext context) async {
 }
 
 Future<String?> showDirectChatDialog(BuildContext context) async {
-  final ctl = TextEditingController(text: '@');
+  final ctl = TextEditingController();
   String? error;
   bool busy = false;
 
@@ -45,8 +46,8 @@ Future<String?> showDirectChatDialog(BuildContext context) async {
         builder: (ctx, setState) {
           Future<void> submit() async {
             final raw = ctl.text.trim();
-            if (!raw.startsWith('@') || !raw.contains(':')) {
-              setState(() => error = 'newChat.mxidFormatHint'.tr);
+            if (!isValidContactInput(raw)) {
+              setState(() => error = 'newChat.usernameHint'.tr);
               return;
             }
             setState(() {
@@ -55,7 +56,7 @@ Future<String?> showDirectChatDialog(BuildContext context) async {
             });
             try {
               final id = await MatrixClientService.instance.client
-                  .startDirectChat(raw);
+                  .startDirectChat(mxidFromInput(raw));
               if (ctx.mounted) Navigator.of(ctx).pop(id);
             } catch (e) {
               setState(() {
@@ -76,9 +77,9 @@ Future<String?> showDirectChatDialog(BuildContext context) async {
                 TextField(
                   controller: ctl,
                   autofocus: true,
-                  decoration: const InputDecoration(
-                    hintText: '@bob:localhost',
-                    border: OutlineInputBorder(),
+                  decoration: InputDecoration(
+                    hintText: 'newChat.usernamePlaceholder'.tr,
+                    border: const OutlineInputBorder(),
                   ),
                   onSubmitted: (_) => submit(),
                 ),
@@ -128,16 +129,17 @@ Future<String?> showGroupRoomDialog(BuildContext context) async {
               setState(() => error = 'newChat.groupNameRequired'.tr);
               return;
             }
-            final invites = inviteCtl.text
+            final rawInvites = inviteCtl.text
                 .split(RegExp(r'[\s,]+'))
                 .where((s) => s.isNotEmpty)
                 .toList();
-            for (final id in invites) {
-              if (!id.startsWith('@') || !id.contains(':')) {
-                setState(() => error = '${'newChat.badMxid'.tr}: $id');
+            for (final id in rawInvites) {
+              if (!isValidContactInput(id)) {
+                setState(() => error = '${'newChat.badUsername'.tr}: $id');
                 return;
               }
             }
+            final invites = rawInvites.map(mxidFromInput).toList();
             setState(() {
               busy = true;
               error = null;
@@ -180,7 +182,7 @@ Future<String?> showGroupRoomDialog(BuildContext context) async {
                     maxLines: 4,
                     decoration: InputDecoration(
                       labelText: 'newChat.invite'.tr,
-                      hintText: '@bob:localhost, @carol:localhost',
+                      hintText: 'newChat.inviteHint'.tr,
                       border: const OutlineInputBorder(),
                     ),
                   ),

@@ -1,10 +1,10 @@
-import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:matrix/matrix.dart';
 import '../../core/client/matrix_client.dart';
 import '../../core/i18n/strings.dart';
 import '../../ui/theme/app_theme.dart';
+import '../../ui/widgets/mxc_image.dart';
 
 /// Room list panel. On mobile = full screen. On desktop = left pane.
 /// Shows joined + invited rooms; invited rows offer an "Accept" button.
@@ -265,17 +265,10 @@ class _Avatar extends StatelessWidget {
   Widget build(BuildContext context) {
     final letter = name.isEmpty ? '?' : name.characters.first.toUpperCase();
     final color = _colorFor(name);
-    final radius = BorderRadius.circular(12);
-    final size = 48.0;
-    if (url != null && url!.startsWith('http')) {
-      return ClipRRect(
-        borderRadius: radius,
-        child: CachedNetworkImage(
-          imageUrl: url!,
-          width: size,
-          height: size,
-          fit: BoxFit.cover,
-        ),
+    const size = 52.0;
+    if (url != null && url!.isNotEmpty) {
+      return ClipOval(
+        child: MxcImage(url: url!, width: size, height: size),
       );
     }
     return Container(
@@ -283,7 +276,7 @@ class _Avatar extends StatelessWidget {
       height: size,
       decoration: BoxDecoration(
         color: color,
-        borderRadius: radius,
+        shape: BoxShape.circle,
       ),
       alignment: Alignment.center,
       child: Text(

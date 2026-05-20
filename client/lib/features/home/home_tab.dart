@@ -1,9 +1,15 @@
+import 'dart:io';
+
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:matrix/matrix.dart';
 import '../../core/client/matrix_client.dart';
 import '../../core/i18n/strings.dart';
+import '../../core/util/mxid.dart';
 import '../../ui/theme/app_theme.dart';
+import '../../ui/widgets/mxc_image.dart';
 import '../rooms/new_chat_dialog.dart';
 import '../stickers/sticker_store.dart';
 
@@ -38,6 +44,33 @@ class _HomeTabState extends State<HomeTab> {
     } catch (_) {}
   }
 
+  /// Pick an image and set it as the account avatar.
+  Future<void> _editAvatar() async {
+    final messenger = ScaffoldMessenger.of(context);
+    final XFile? x;
+    try {
+      x = await ImagePicker().pickImage(
+        source: ImageSource.gallery,
+        imageQuality: 90,
+        maxWidth: 800,
+        maxHeight: 800,
+      );
+    } catch (e) {
+      messenger.showSnackBar(
+          SnackBar(content: Text('${'pickerError'.tr}: $e')));
+      return;
+    }
+    if (x == null) return;
+    try {
+      final bytes = await File(x.path).readAsBytes();
+      await _c.setAvatar(MatrixImageFile(bytes: bytes, name: x.name));
+      await _loadProfile();
+    } catch (e) {
+      messenger.showSnackBar(
+          SnackBar(content: Text('${'profile.avatarError'.tr}: $e')));
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return StreamBuilder(
@@ -55,7 +88,11 @@ class _HomeTabState extends State<HomeTab> {
         return ListView(
           padding: EdgeInsets.zero,
           children: [
-            _ProfileCard(profile: _profile, mxid: _c.userID ?? ''),
+            _ProfileCard(
+              profile: _profile,
+              mxid: _c.userID ?? '',
+              onEditAvatar: _editAvatar,
+            ),
             const SizedBox(height: 8),
             _QuickActions(
               onAddFriend: () async {
@@ -106,56 +143,67 @@ class _HomeTabState extends State<HomeTab> {
 }
 
 class _ProfileCard extends StatelessWidget {
-  const _ProfileCard({required this.profile, required this.mxid});
+  const _ProfileCard({
+    required this.profile,
+    required this.mxid,
+    required this.onEditAvatar,
+  });
   final Profile? profile;
   final String mxid;
+  final VoidCallback onEditAvatar;
 
   String get _displayName {
     final dn = profile?.displayName;
     if (dn != null && dn.isNotEmpty) return dn;
-    if (mxid.startsWith('@') && mxid.contains(':')) {
-      return mxid.substring(1, mxid.indexOf(':'));
-    }
-    return mxid;
+    return localpartOf(mxid);
   }
 
   @override
   Widget build(BuildContext context) {
-    final avatarHttp = profile?.avatarUrl != null
-        ? _mxcToHttp(profile!.avatarUrl.toString())
-        : null;
+    final avatarMxc = profile?.avatarUrl?.toString();
     return InkWell(
-      onTap: () {},
+      onTap: onEditAvatar,
       child: Container(
         color: Colors.white,
         padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
         child: Row(
           children: [
-            Container(
-              width: 56,
-              height: 56,
-              decoration: BoxDecoration(
-                color: AppTheme.lineGreen.withValues(alpha: 0.15),
-                borderRadius: BorderRadius.circular(16),
-              ),
-              alignment: Alignment.center,
-              child: avatarHttp != null
-                  ? ClipRRect(
-                      borderRadius: BorderRadius.circular(16),
-                      child: CachedNetworkImage(
-                        imageUrl: avatarHttp,
-                        width: 56,
-                        height: 56,
-                        fit: BoxFit.cover,
-                      ),
-                    )
-                  : Text(
-                      _displayName.characters.first.toUpperCase(),
-                      style: const TextStyle(
-                          fontSize: 24,
-                          fontWeight: FontWeight.w700,
-                          color: AppTheme.lineGreen),
+            Stack(
+              children: [
+                Container(
+                  width: 56,
+                  height: 56,
+                  clipBehavior: Clip.antiAlias,
+                  decoration: BoxDecoration(
+                    color: AppTheme.lineGreen.withValues(alpha: 0.15),
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                  alignment: Alignment.center,
+                  child: avatarMxc != null
+                      ? MxcImage(url: avatarMxc, width: 56, height: 56)
+                      : Text(
+                          _displayName.characters.first.toUpperCase(),
+                          style: const TextStyle(
+                              fontSize: 24,
+                              fontWeight: FontWeight.w700,
+                              color: AppTheme.lineGreen),
+                        ),
+                ),
+                Positioned(
+                  right: 0,
+                  bottom: 0,
+                  child: Container(
+                    padding: const EdgeInsets.all(3),
+                    decoration: BoxDecoration(
+                      color: AppTheme.lineGreen,
+                      shape: BoxShape.circle,
+                      border: Border.all(color: Colors.white, width: 1.5),
                     ),
+                    child: const Icon(Icons.camera_alt,
+                        size: 11, color: Colors.white),
+                  ),
+                ),
+              ],
             ),
             const SizedBox(width: 12),
             Expanded(
@@ -168,15 +216,12 @@ class _ProfileCard extends StatelessWidget {
                           fontWeight: FontWeight.w700,
                           color: Color(0xFF1A1A1A))),
                   const SizedBox(height: 2),
-                  Text(mxid,
+                  Text(localpartOf(mxid),
                       style: const TextStyle(
                           fontSize: 12, color: AppTheme.subtleText)),
                 ],
               ),
             ),
-            const Icon(Icons.qr_code_2_outlined, color: Color(0xFF666666)),
-            const SizedBox(width: 4),
-            const Icon(Icons.chevron_right, color: Colors.black26),
           ],
         ),
       ),
@@ -357,11 +402,7 @@ class _ContactTile extends StatelessWidget {
     );
 
     return InkWell(
-      onTap: () {
-        Navigator.of(context, rootNavigator: true).maybePop();
-        // Tab to Chats then push timeline? For MVP just no-op — user can
-        // tap from Chats. Could route to /rooms/:id here.
-      },
+      onTap: () => context.push('/rooms/${Uri.encodeComponent(room.id)}'),
       child: Container(
         color: Colors.white,
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),

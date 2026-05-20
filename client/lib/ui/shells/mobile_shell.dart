@@ -3,14 +3,14 @@ import 'package:go_router/go_router.dart';
 import 'package:matrix/matrix.dart';
 import '../../core/client/matrix_client.dart';
 import '../../core/i18n/strings.dart';
+import '../../core/util/mxid.dart';
 import '../../features/home/home_tab.dart';
-import '../../features/rooms/new_chat_dialog.dart';
-import '../../features/rooms/room_list.dart';
+import '../../features/rooms/chats_tab.dart';
+import '../../features/rooms/user_directory.dart';
 import '../../features/timeline/timeline_view.dart';
 import '../theme/app_theme.dart';
-import '../widgets/me_chip.dart';
 
-/// Mobile shell: Line-style 5 tabs.
+/// Mobile shell: Home / Chats / Friends.
 class MobileShell extends StatefulWidget {
   const MobileShell({super.key});
 
@@ -20,100 +20,32 @@ class MobileShell extends StatefulWidget {
 
 class _MobileShellState extends State<MobileShell> {
   int _tab = 1; // Default to Chats
-  bool _searching = false;
-  final _searchCtl = TextEditingController();
-
-  @override
-  void dispose() {
-    _searchCtl.dispose();
-    super.dispose();
-  }
-
-  void _stopSearch() {
-    setState(() {
-      _searching = false;
-      _searchCtl.clear();
-    });
-  }
 
   static const _tabs = <_TabSpec>[
     _TabSpec('tab.home', Icons.home_outlined, Icons.home),
     _TabSpec('tab.chats', Icons.chat_bubble_outline, Icons.chat_bubble),
-    _TabSpec('tab.voom', Icons.play_circle_outline, Icons.play_circle),
-    _TabSpec('tab.news', Icons.article_outlined, Icons.article),
-    _TabSpec('tab.wallet', Icons.account_balance_wallet_outlined,
-        Icons.account_balance_wallet),
+    _TabSpec('tab.friends', Icons.people_outline, Icons.people),
   ];
-
-  String get _title => _tabs[_tab].label.tr;
 
   @override
   Widget build(BuildContext context) {
     final body = switch (_tab) {
       0 => const HomeTab(),
-      1 => RoomList(
-          onRoomTap: (r) =>
-              context.push('/rooms/${Uri.encodeComponent(r.id)}'),
-          query: _searching ? _searchCtl.text : null,
-        ),
-      2 => const _PlaceholderTab(label: 'VOOM', subtitle: 'Short videos'),
-      3 => const _PlaceholderTab(label: 'News', subtitle: 'Daily feed'),
-      4 => const _PlaceholderTab(label: 'Wallet', subtitle: 'Pay & rewards'),
+      1 => const ChatsTab(),
+      2 => const UserDirectory(),
       _ => const SizedBox.shrink(),
     };
 
     return Scaffold(
-      appBar: AppBar(
-        titleSpacing: 12,
-        leading: _searching
-            ? IconButton(
-                icon: const Icon(Icons.arrow_back),
-                onPressed: _stopSearch,
-              )
-            : null,
-        title: _searching
-            ? TextField(
-                controller: _searchCtl,
-                autofocus: true,
-                decoration: InputDecoration(
-                  hintText: 'common.search'.tr,
-                  border: InputBorder.none,
-                ),
-                onChanged: (_) => setState(() {}),
-              )
-            : _tab == 1
-                ? MeChip(onTap: () => _showAccountSheet(context))
-                : Text(_title,
-                    style: const TextStyle(
-                        fontWeight: FontWeight.w700, fontSize: 18)),
-        actions: _searching
-            ? const []
-            : _tab == 1
-                ? [
-                    IconButton(
-                      tooltip: 'rooms.newChat'.tr,
-                      icon: const Icon(Icons.add_comment_outlined),
-                      onPressed: () async {
-                        final id = await showNewChatDialog(context);
-                        if (id != null && context.mounted) {
-                          context
-                              .push('/rooms/${Uri.encodeComponent(id)}');
-                        }
-                      },
-                    ),
-                    IconButton(
-                      tooltip: 'common.search'.tr,
-                      icon: const Icon(Icons.search),
-                      onPressed: () => setState(() => _searching = true),
-                    ),
-                  ]
-                : [
-                    IconButton(
-                      icon: const Icon(Icons.search),
-                      onPressed: () => setState(() => _searching = true),
-                    ),
-                  ],
-      ),
+      // Chats draws its own large-title header; Home and Friends use the bar.
+      appBar: _tab == 1
+          ? null
+          : AppBar(
+              titleSpacing: 16,
+              title: Text(_tabs[_tab].label.tr,
+                  style: const TextStyle(
+                      fontWeight: FontWeight.w700, fontSize: 18)),
+            ),
       body: body,
       bottomNavigationBar: Container(
         decoration: const BoxDecoration(
@@ -186,29 +118,8 @@ class _TabButton extends StatelessWidget {
   }
 }
 
-class _PlaceholderTab extends StatelessWidget {
-  const _PlaceholderTab({required this.label, required this.subtitle});
-  final String label;
-  final String subtitle;
-
-  @override
-  Widget build(BuildContext context) {
-    return Center(
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Text(label,
-              style: const TextStyle(
-                  fontSize: 24, fontWeight: FontWeight.w700)),
-          const SizedBox(height: 4),
-          Text(subtitle, style: const TextStyle(color: AppTheme.subtleText)),
-        ],
-      ),
-    );
-  }
-}
-
-Future<void> _showAccountSheet(BuildContext context) async {
+/// Account bottom sheet — profile, language, security, sign out.
+Future<void> showAccountSheet(BuildContext context) async {
   final mxid = MatrixClientService.instance.client.userID ?? '';
   final lc = LocaleController.instance;
   await showModalBottomSheet(
@@ -221,7 +132,7 @@ Future<void> _showAccountSheet(BuildContext context) async {
           ListTile(
             leading: const Icon(Icons.account_circle_outlined),
             title: Text('common.account'.tr),
-            subtitle: Text(mxid),
+            subtitle: Text(localpartOf(mxid)),
           ),
           const Divider(height: 1),
           ListTile(

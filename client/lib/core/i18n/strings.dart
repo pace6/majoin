@@ -77,18 +77,26 @@ const Map<String, Map<String, String>> _bundles = {
     // Tabs
     'tab.home': 'หน้าหลัก',
     'tab.chats': 'แชท',
-    'tab.voom': 'VOOM',
-    'tab.news': 'ข่าว',
-    'tab.wallet': 'วอลเล็ต',
+    'tab.friends': 'เพื่อน',
 
     // Common actions
     'common.cancel': 'ยกเลิก',
     'common.ok': 'ตกลง',
+    'common.retry': 'ลองใหม่',
     'common.search': 'ค้นหา',
     'common.signOut': 'ออกจากระบบ',
     'common.settings': 'ตั้งค่า',
     'common.account': 'บัญชี',
     'common.language': 'ภาษา',
+
+    // Friends directory
+    'friends.search': 'ค้นหาเพื่อน',
+    'friends.empty': 'ไม่พบผู้ใช้',
+    'friends.loadError': 'โหลดรายชื่อไม่ได้',
+    'friends.openError': 'เปิดแชทไม่ได้',
+
+    // Profile
+    'profile.avatarError': 'เปลี่ยนรูปไม่ได้',
 
     // Room list
     'rooms.empty': 'ยังไม่มีแชท แตะ + เพื่อเริ่มแชทใหม่',
@@ -96,23 +104,26 @@ const Map<String, Map<String, String>> _bundles = {
     'rooms.accept': 'รับ',
     'rooms.decline': 'ปฏิเสธ',
     'rooms.newChat': 'แชทใหม่',
+    'chats.filterAll': 'ทั้งหมด',
 
     // New chat
     'newChat.title': 'แชทใหม่',
     'newChat.direct': 'แชทตัวต่อตัว',
-    'newChat.directDesc': 'แชท 1-on-1 กับ Matrix user',
+    'newChat.directDesc': 'แชท 1-on-1',
     'newChat.group': 'สร้างกลุ่ม',
     'newChat.groupDesc': 'แชทกลุ่มหลายคน',
     'newChat.directTitle': 'แชทตัวต่อตัวใหม่',
-    'newChat.directHint': 'กรอก Matrix ID ของผู้ติดต่อ',
+    'newChat.directHint': 'กรอกชื่อผู้ใช้ของผู้ติดต่อ',
     'newChat.startChat': 'เริ่มแชท',
     'newChat.groupTitle': 'สร้างกลุ่มใหม่',
     'newChat.groupName': 'ชื่อกลุ่ม',
     'newChat.groupNameRequired': 'ต้องระบุชื่อกลุ่ม',
     'newChat.invite': 'เชิญ (ไม่บังคับ)',
     'newChat.create': 'สร้าง',
-    'newChat.badMxid': 'Matrix ID ไม่ถูกต้อง',
-    'newChat.mxidFormatHint': 'ใช้ Matrix ID เต็ม เช่น @bob:localhost',
+    'newChat.badUsername': 'ชื่อผู้ใช้ไม่ถูกต้อง',
+    'newChat.usernameHint': 'กรอกชื่อผู้ใช้ เช่น chatchai',
+    'newChat.usernamePlaceholder': 'chatchai',
+    'newChat.inviteHint': 'chatchai, somchai',
 
     // Composer
     'composer.hint': 'ข้อความ',
@@ -248,39 +259,48 @@ const Map<String, Map<String, String>> _bundles = {
 
     'tab.home': 'Home',
     'tab.chats': 'Chats',
-    'tab.voom': 'VOOM',
-    'tab.news': 'News',
-    'tab.wallet': 'Wallet',
+    'tab.friends': 'Friends',
 
     'common.cancel': 'Cancel',
     'common.ok': 'OK',
+    'common.retry': 'Retry',
     'common.search': 'Search',
     'common.signOut': 'Sign out',
     'common.settings': 'Settings',
     'common.account': 'Account',
     'common.language': 'Language',
 
+    'friends.search': 'Search friends',
+    'friends.empty': 'No users found',
+    'friends.loadError': 'Could not load directory',
+    'friends.openError': 'Could not open chat',
+
+    'profile.avatarError': 'Could not change photo',
+
     'rooms.empty': 'No chats yet. Tap + to start one.',
     'rooms.invitation': 'Invitation',
     'rooms.accept': 'Accept',
     'rooms.decline': 'Decline',
     'rooms.newChat': 'New chat',
+    'chats.filterAll': 'All',
 
     'newChat.title': 'New chat',
     'newChat.direct': 'New direct chat',
-    'newChat.directDesc': '1-on-1 chat with a Matrix user',
+    'newChat.directDesc': '1-on-1 chat',
     'newChat.group': 'New group room',
     'newChat.groupDesc': 'Group chat with multiple people',
     'newChat.directTitle': 'New direct chat',
-    'newChat.directHint': 'Enter the Matrix ID of your contact.',
+    'newChat.directHint': "Enter your contact's username.",
     'newChat.startChat': 'Start chat',
     'newChat.groupTitle': 'New group room',
     'newChat.groupName': 'Group name',
     'newChat.groupNameRequired': 'Group name required',
     'newChat.invite': 'Invite (optional)',
     'newChat.create': 'Create',
-    'newChat.badMxid': 'Bad Matrix ID',
-    'newChat.mxidFormatHint': 'Use full Matrix ID, e.g. @bob:localhost',
+    'newChat.badUsername': 'Invalid username',
+    'newChat.usernameHint': 'Enter a username, e.g. chatchai',
+    'newChat.usernamePlaceholder': 'chatchai',
+    'newChat.inviteHint': 'chatchai, somchai',
 
     'composer.hint': 'Message',
     'composer.photoGallery': 'Photo from gallery',
