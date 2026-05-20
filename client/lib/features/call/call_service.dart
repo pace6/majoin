@@ -131,9 +131,8 @@ class CallService implements WebRTCDelegate {
 
   // ---- Public helpers ----
 
-  Future<void> startCall(Room room, {required bool video}) async {
-    final peer = room.directChatMatrixID;
-    if (peer == null) return;
+  Future<void> startCall(Room room,
+      {required String peer, required bool video}) async {
     await voip.inviteToCall(
       room,
       video ? CallType.kVideo : CallType.kVoice,

@@ -415,15 +415,31 @@ class TimelineAppBar extends StatelessWidget implements PreferredSizeWidget {
   }
 }
 
+/// The other party in a 1:1 room — the m.direct peer, or the sole other
+/// member when m.direct hasn't synced.
+String? _callPeer(Room room) {
+  final dm = room.directChatMatrixID;
+  if (dm != null) return dm;
+  final me = room.client.userID;
+  final others =
+      room.getParticipants().map((u) => u.id).where((id) => id != me).toSet();
+  return others.length == 1 ? others.first : null;
+}
+
 Future<void> _startCall(BuildContext context, Room room,
     {required bool video}) async {
-  if (!room.isDirectChat) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('call.notDm'.tr)),
-    );
+  final messenger = ScaffoldMessenger.of(context);
+  final peer = _callPeer(room);
+  if (peer == null) {
+    messenger.showSnackBar(SnackBar(content: Text('call.notDm'.tr)));
     return;
   }
-  await CallService.instance.startCall(room, video: video);
+  try {
+    await CallService.instance.startCall(room, peer: peer, video: video);
+  } catch (e) {
+    messenger.showSnackBar(
+        SnackBar(content: Text('${'call.failed'.tr}: $e')));
+  }
 }
 
 /// 36px room avatar in the chat header — round for DMs, soft-square for groups.

@@ -285,6 +285,7 @@ const Map<String, Map<String, String>> _bundles = {
     'call.speaker': 'ลำโพง',
     'call.hangUp': 'วางสาย',
     'call.notDm': 'ใช้ได้เฉพาะแชทตัวต่อตัว',
+    'call.failed': 'โทรไม่สำเร็จ',
 
     // Misc
     'pickerError': 'เปิดตัวเลือกรูปไม่ได้',
@@ -506,5 +507,6 @@ const Map<String, Map<String, String>> _bundles = {
     'call.speaker': 'Speaker',
     'call.hangUp': 'Hang up',
     'call.notDm': 'Calls only available in direct chats',
+    'call.failed': 'Call failed',
   },
 };
