@@ -18,6 +18,7 @@ import 'features/security/verification_sheet.dart';
 import 'ui/pages/login_page.dart';
 import 'ui/pages/register_page.dart';
 import 'ui/pages/security_page.dart';
+import 'ui/pages/welcome_page.dart';
 import 'ui/shells/desktop_shell.dart';
 import 'ui/shells/mobile_shell.dart';
 import 'ui/theme/app_theme.dart';
@@ -45,14 +46,19 @@ class _MajoinAppState extends State<MajoinApp> {
       redirect: (context, state) {
         final logged =
             MatrixClientService.instance.hasClient && MatrixClientService.instance.isLoggedIn;
-        final atAuth = state.matchedLocation == '/login' ||
+        final atAuth = state.matchedLocation == '/welcome' ||
+            state.matchedLocation == '/login' ||
             state.matchedLocation == '/register';
-        if (!logged && !atAuth) return '/login';
+        if (!logged && !atAuth) return '/welcome';
         if (logged && atAuth) return '/rooms';
         return null;
       },
       routes: [
         GoRoute(path: '/', redirect: (_, __) => '/rooms'),
+        GoRoute(
+          path: '/welcome',
+          builder: (_, __) => const WelcomePage(),
+        ),
         GoRoute(
           path: '/login',
           builder: (_, __) => ChangeNotifierProvider(

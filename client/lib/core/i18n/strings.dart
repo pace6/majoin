@@ -56,6 +56,9 @@ const Map<String, Map<String, String>> _bundles = {
   'th': {
     // App
     'app.tagline': 'แชทกับคนทั้งโลก',
+    'app.name': 'majoin',
+    'welcome.tagline': 'แอปแชทเล็กๆ ที่อบอุ่นกับคนใกล้ตัว',
+    'welcome.terms': 'การเข้าใช้งานคือการยอมรับข้อกำหนดและนโยบายความเป็นส่วนตัว',
     'app.poweredBy': 'Powered by Matrix',
 
     // Login
@@ -277,6 +280,9 @@ const Map<String, Map<String, String>> _bundles = {
   },
   'en': {
     'app.tagline': 'Chat with the world',
+    'app.name': 'majoin',
+    'welcome.tagline': 'A cozy little chat app for the people close to you',
+    'welcome.terms': 'By continuing you accept the Terms and Privacy Policy',
     'app.poweredBy': 'Powered by Matrix',
 
     'login.title': 'majoin',
