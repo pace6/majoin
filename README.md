@@ -70,16 +70,21 @@ sudo register_new_matrix_user -c /etc/matrix-synapse/homeserver.yaml \
 |------|--------|
 | Login / register (password) | done |
 | DM + group rooms | done |
-| Text / image / video / audio messages | done |
+| Text / image / video / audio / file messages | done |
 | Stickers + sticker store API | done |
 | LINE Flex Message renderer (3 demos) | done |
-| Reply / copy / unsend, read receipts | done |
+| Reply / copy / unsend / forward / edit | done |
+| Reactions, read receipts, typing indicator | done |
+| History pagination, room search | done |
+| E2EE: recovery key, cross-signing, key backup, device verification | done |
 | 1:1 voice + video call (WebRTC + coturn) | wired, MVP |
 | TH / EN localization | done |
+| Push — local notifications (all platforms) | done |
+| Push — FCM / APNs remote (background/killed) | wired; needs Firebase config |
 | Group call (LiveKit) | planned (Phase 2) |
-| Push (FCM / APNs via sygnal) | planned |
 
 ## Component docs
 
 - `services/sticker-api/README.md` — sticker store API deploy + pack upload
 - `infra/scripts/` — Synapse bootstrap + user registration
+- `docs/push-setup.md` — FCM remote push setup (Firebase + sygnal)
