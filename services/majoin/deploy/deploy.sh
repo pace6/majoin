@@ -47,7 +47,10 @@ if [ -z "${DATABASE_URL:-}" ]; then
   exit 1
 fi
 
-UV_BIN="${UV_BIN:-$(command -v uv || echo /usr/local/bin/uv)}"
+# uv is installed per-user by the bootstrap (curl | sh) — run deploy.sh as
+# that user. The systemd unit can't expand $HOME, so it uses the
+# /usr/local/bin/uv symlink instead.
+UV_BIN="${UV_BIN:-$HOME/.local/bin/uv}"
 
 # ─── Slack helper ────────────────────────────────────────────────────────
 post_slack() {
