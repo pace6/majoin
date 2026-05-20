@@ -165,6 +165,15 @@ const Map<String, Map<String, String>> _bundles = {
 
     // Security / E2EE
     'security.title': 'ความปลอดภัย',
+    'keyBackup.setupTitle': 'สำรองกุญแจเข้ารหัส',
+    'keyBackup.setupBody':
+        'ตั้งค่าสำรองกุญแจเพื่อกู้ข้อความเข้ารหัสได้เมื่อเปลี่ยน/ลงแอปใหม่ จะได้ recovery key มาเก็บไว้',
+    'keyBackup.setUpNow': 'ตั้งค่าเลย',
+    'keyBackup.later': 'ไว้ทีหลัง',
+    'keyBackup.setupFailed': 'ตั้งค่าสำรองกุญแจไม่สำเร็จ',
+    'keyBackup.restoreTitle': 'กู้ข้อความเข้ารหัส',
+    'keyBackup.restoreBody':
+        'บัญชีนี้มีสำรองกุญแจอยู่ ใส่ recovery key เพื่อกู้ข้อความเก่าบนเครื่องนี้',
     'security.unavailable': 'อุปกรณ์นี้ไม่รองรับการเข้ารหัส',
     'security.recovery': 'รหัสกู้คืน',
     'security.crossSigning': 'การลงนามข้ามอุปกรณ์',
@@ -343,6 +352,15 @@ const Map<String, Map<String, String>> _bundles = {
     'file.saved': 'File saved',
 
     'security.title': 'Security',
+    'keyBackup.setupTitle': 'Back up encryption keys',
+    'keyBackup.setupBody':
+        'Set up key backup so you can recover encrypted messages on a new device. You will get a recovery key to keep safe.',
+    'keyBackup.setUpNow': 'Set up now',
+    'keyBackup.later': 'Later',
+    'keyBackup.setupFailed': 'Key backup setup failed',
+    'keyBackup.restoreTitle': 'Restore encrypted messages',
+    'keyBackup.restoreBody':
+        'This account has a key backup. Enter your recovery key to restore old messages on this device.',
     'security.unavailable': 'Encryption not available on this device',
     'security.recovery': 'Recovery key',
     'security.crossSigning': 'Cross-signing',

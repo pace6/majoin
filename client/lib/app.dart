@@ -12,6 +12,7 @@ import 'core/encryption/key_service.dart';
 import 'core/i18n/strings.dart';
 import 'core/push/push_service.dart';
 import 'features/call/call_service.dart';
+import 'features/security/key_backup_gate.dart';
 import 'features/security/verification_sheet.dart';
 import 'ui/pages/login_page.dart';
 import 'ui/pages/register_page.dart';
@@ -139,8 +140,23 @@ class _MajoinAppState extends State<MajoinApp> {
   }
 }
 
-class _AdaptiveHome extends StatelessWidget {
+class _AdaptiveHome extends StatefulWidget {
   const _AdaptiveHome();
+  @override
+  State<_AdaptiveHome> createState() => _AdaptiveHomeState();
+}
+
+class _AdaptiveHomeState extends State<_AdaptiveHome> {
+  @override
+  void initState() {
+    super.initState();
+    // On the home screen, make sure encryption key backup is set up (or
+    // restored on this device) so encrypted history survives reinstalls.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) maybePromptKeyBackup(context);
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     return LayoutBuilder(
