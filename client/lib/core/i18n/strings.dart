@@ -125,9 +125,12 @@ const Map<String, Map<String, String>> _bundles = {
     'composer.file': 'ไฟล์',
     'composer.attach': 'แนบไฟล์',
     'composer.replyingTo': 'ตอบกลับ',
+    'composer.editing': 'กำลังแก้ไขข้อความ',
 
     // Message actions
     'msg.reply': 'ตอบกลับ',
+    'msg.edit': 'แก้ไข',
+    'msg.edited': '(แก้ไขแล้ว)',
     'msg.copy': 'คัดลอก',
     'msg.forward': 'ส่งต่อ',
     'msg.forwardTo': 'ส่งต่อไปยัง',
@@ -288,8 +291,11 @@ const Map<String, Map<String, String>> _bundles = {
     'composer.file': 'File',
     'composer.attach': 'Attach',
     'composer.replyingTo': 'Replying to',
+    'composer.editing': 'Editing message',
 
     'msg.reply': 'Reply',
+    'msg.edit': 'Edit',
+    'msg.edited': '(edited)',
     'msg.copy': 'Copy',
     'msg.forward': 'Forward',
     'msg.forwardTo': 'Forward to',

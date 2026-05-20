@@ -49,7 +49,23 @@ class _ComposerState extends State<Composer> {
     widget.ui.addListener(_onUiChange);
   }
 
-  void _onUiChange() => setState(() {});
+  // Tracks which event the composer is currently editing, so entering edit
+  // mode prefills the field once and leaving it clears the field.
+  String? _editingId;
+
+  void _onUiChange() {
+    final edit = widget.ui.editTarget;
+    if (edit != null && edit.eventId != _editingId) {
+      _editingId = edit.eventId;
+      _ctl.text = edit.body;
+      _ctl.selection =
+          TextSelection.collapsed(offset: _ctl.text.length);
+    } else if (edit == null && _editingId != null) {
+      _editingId = null;
+      _ctl.clear();
+    }
+    setState(() {});
+  }
 
   void _updateTyping(bool typing) {
     if (typing) {
@@ -80,10 +96,17 @@ class _ComposerState extends State<Composer> {
   Future<void> _sendText() async {
     final text = _ctl.text.trim();
     if (text.isEmpty) return;
+    _updateTyping(false);
+    final edit = widget.ui.editTarget;
+    if (edit != null) {
+      _ctl.clear();
+      widget.ui.clearEdit();
+      await widget.room.sendTextEvent(text, editEventId: edit.eventId);
+      return;
+    }
     _ctl.clear();
     final reply = widget.ui.replyTo;
     widget.ui.clearReply();
-    _updateTyping(false);
     await widget.room.sendTextEvent(text, inReplyTo: reply);
   }
 
@@ -238,6 +261,7 @@ class _ComposerState extends State<Composer> {
   @override
   Widget build(BuildContext context) {
     final reply = widget.ui.replyTo;
+    final editTarget = widget.ui.editTarget;
     if (_recording) {
       return SafeArea(
         top: false,
@@ -257,7 +281,9 @@ class _ComposerState extends State<Composer> {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            if (reply != null)
+            if (editTarget != null)
+              _EditBanner(onClear: () => widget.ui.clearEdit())
+            else if (reply != null)
               _ReplyPreview(
                 event: reply,
                 onClear: () => widget.ui.clearReply(),
@@ -338,6 +364,40 @@ class _ComposerState extends State<Composer> {
             ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+/// Banner shown above the composer while editing an existing message.
+class _EditBanner extends StatelessWidget {
+  const _EditBanner({required this.onClear});
+  final VoidCallback onClear;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      color: const Color(0xFFF5F5F5),
+      padding: const EdgeInsets.fromLTRB(12, 8, 4, 8),
+      child: Row(
+        children: [
+          Container(width: 3, height: 36, color: AppTheme.lineGreen),
+          const SizedBox(width: 8),
+          const Icon(Icons.edit_outlined,
+              size: 16, color: AppTheme.lineGreen),
+          const SizedBox(width: 6),
+          Expanded(
+            child: Text('composer.editing'.tr,
+                style: const TextStyle(
+                    fontSize: 12,
+                    color: AppTheme.lineGreen,
+                    fontWeight: FontWeight.w600)),
+          ),
+          IconButton(
+            icon: const Icon(Icons.close, size: 18),
+            onPressed: onClear,
+          ),
+        ],
       ),
     );
   }

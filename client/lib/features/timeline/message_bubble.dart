@@ -15,11 +15,13 @@ class MessageBubble extends StatelessWidget {
   const MessageBubble({
     super.key,
     required this.event,
+    required this.timeline,
     this.showSender = false,
     this.showAvatar = true,
     this.onLongPress,
   });
   final Event event;
+  final Timeline timeline;
   final bool showSender;
   final bool showAvatar;
   final VoidCallback? onLongPress;
@@ -29,9 +31,13 @@ class MessageBubble extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final isSticker = event.type == 'm.sticker';
-    final isFlex = event.type == kFlexEventType;
-    final isImage = event.messageType == MessageTypes.Image;
+    // Render the latest edit (or redaction) of this event, not the original.
+    final display = event.getDisplayEvent(timeline);
+    final isSticker = display.type == 'm.sticker';
+    final isFlex = display.type == kFlexEventType;
+    final isImage = display.messageType == MessageTypes.Image;
+    final isEdited =
+        event.hasAggregatedEvents(timeline, RelationshipTypes.edit);
 
     final time = DateFormat.Hm().format(event.originServerTs);
     final timeWidget = Padding(
@@ -40,8 +46,8 @@ class MessageBubble extends StatelessWidget {
           style: const TextStyle(fontSize: 10, color: Color(0xCCFFFFFF))),
     );
 
-    final isVideo = event.messageType == MessageTypes.Video;
-    final messageBody = _renderEvent(context);
+    final isVideo = display.messageType == MessageTypes.Video;
+    final messageBody = _renderEvent(context, display, isEdited);
 
     // Stickers, flex, images, video: no colored bubble.
     // Audio keeps the bubble (player tints itself by sender).
@@ -82,6 +88,7 @@ class MessageBubble extends StatelessWidget {
                 constraints: const BoxConstraints(maxWidth: 280),
                 child: bubble,
               ),
+              _ReactionsRow(event: event, timeline: timeline, mine: _mine),
             ],
           ),
         ),
@@ -105,18 +112,18 @@ class MessageBubble extends StatelessWidget {
     );
   }
 
-  Widget _renderEvent(BuildContext context) {
-    if (event.type == kFlexEventType) {
-      final flexJson = event.content['app.majoin.flex'];
+  Widget _renderEvent(BuildContext context, Event display, bool isEdited) {
+    if (display.type == kFlexEventType) {
+      final flexJson = display.content['app.majoin.flex'];
       if (flexJson is Map) {
         return FlexBubbleView(
           bubble: FlexBubble.fromJson(Map<String, dynamic>.from(flexJson)),
         );
       }
-      return Text(event.body);
+      return Text(display.body);
     }
-    if (event.type == 'm.sticker') {
-      final url = event.content['url'] as String?;
+    if (display.type == 'm.sticker') {
+      final url = display.content['url'] as String?;
       if (url != null && url.startsWith('mxc://')) {
         return MxcImage(
           url: url,
@@ -127,10 +134,10 @@ class MessageBubble extends StatelessWidget {
       }
       return const Text('[sticker]');
     }
-    if (event.messageType == MessageTypes.Audio) {
-      final url = event.attachmentMxcUrl;
+    if (display.messageType == MessageTypes.Audio) {
+      final url = display.attachmentMxcUrl;
       if (url != null) {
-        final dur = (event.content['info'] as Map?)?['duration'] as int?;
+        final dur = (display.content['info'] as Map?)?['duration'] as int?;
         return AudioMessagePlayer(
           mxcUrl: url.toString(),
           durationMs: dur,
@@ -139,15 +146,15 @@ class MessageBubble extends StatelessWidget {
       }
       return const _UploadingBox(width: 200, height: 48);
     }
-    if (event.messageType == MessageTypes.Video) {
-      final url = event.attachmentMxcUrl;
+    if (display.messageType == MessageTypes.Video) {
+      final url = display.attachmentMxcUrl;
       if (url != null) {
         return VideoMessageTile(mxcUrl: url.toString());
       }
       return const _UploadingBox(width: 240, height: 160);
     }
-    if (event.messageType == MessageTypes.Image) {
-      final url = event.attachmentMxcUrl;
+    if (display.messageType == MessageTypes.Image) {
+      final url = display.attachmentMxcUrl;
       return ClipRRect(
         borderRadius: BorderRadius.circular(14),
         child: url != null
@@ -170,15 +177,117 @@ class MessageBubble extends StatelessWidget {
               ),
       );
     }
-    if (event.messageType == MessageTypes.File) {
-      return _FileTile(event: event, mine: _mine);
+    if (display.messageType == MessageTypes.File) {
+      return _FileTile(event: display, mine: _mine);
     }
-    return Text(
-      event.body,
-      style: TextStyle(
-        color: _mine ? AppTheme.myBubbleText : AppTheme.theirBubbleText,
-        fontSize: 15,
-        height: 1.3,
+    final color = _mine ? AppTheme.myBubbleText : AppTheme.theirBubbleText;
+    return Text.rich(
+      TextSpan(
+        text: display.body,
+        children: [
+          if (isEdited)
+            TextSpan(
+              text: '  ${'msg.edited'.tr}',
+              style: TextStyle(
+                  fontSize: 11,
+                  color: color.withValues(alpha: 0.5),
+                  fontStyle: FontStyle.italic),
+            ),
+        ],
+      ),
+      style: TextStyle(color: color, fontSize: 15, height: 1.3),
+    );
+  }
+}
+
+/// Reaction chips under a bubble. Tapping a chip toggles your own reaction.
+class _ReactionsRow extends StatelessWidget {
+  const _ReactionsRow({
+    required this.event,
+    required this.timeline,
+    required this.mine,
+  });
+  final Event event;
+  final Timeline timeline;
+  final bool mine;
+
+  @override
+  Widget build(BuildContext context) {
+    if (!event.hasAggregatedEvents(timeline, RelationshipTypes.reaction)) {
+      return const SizedBox.shrink();
+    }
+    final myId = MatrixClientService.instance.client.userID;
+    final reactions =
+        event.aggregatedEvents(timeline, RelationshipTypes.reaction);
+
+    // key -> (count, my reaction event id if I reacted)
+    final counts = <String, int>{};
+    final myReaction = <String, String>{};
+    for (final r in reactions) {
+      if (r.redacted) continue;
+      final key = r.content
+          .tryGetMap<String, Object?>('m.relates_to')
+          ?.tryGet<String>('key');
+      if (key == null) continue;
+      counts[key] = (counts[key] ?? 0) + 1;
+      if (r.senderId == myId) myReaction[key] = r.eventId;
+    }
+    if (counts.isEmpty) return const SizedBox.shrink();
+
+    return Padding(
+      padding: const EdgeInsets.only(top: 2),
+      child: Wrap(
+        spacing: 4,
+        runSpacing: 4,
+        children: [
+          for (final entry in counts.entries)
+            _ReactionChip(
+              emoji: entry.key,
+              count: entry.value,
+              reacted: myReaction.containsKey(entry.key),
+              onTap: () async {
+                final mineId = myReaction[entry.key];
+                if (mineId != null) {
+                  await event.room.redactEvent(mineId);
+                } else {
+                  await event.room.sendReaction(event.eventId, entry.key);
+                }
+              },
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ReactionChip extends StatelessWidget {
+  const _ReactionChip({
+    required this.emoji,
+    required this.count,
+    required this.reacted,
+    required this.onTap,
+  });
+  final String emoji;
+  final int count;
+  final bool reacted;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(12),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+        decoration: BoxDecoration(
+          color: reacted ? const Color(0x3306C755) : const Color(0x22000000),
+          borderRadius: BorderRadius.circular(12),
+          border: reacted
+              ? Border.all(color: AppTheme.lineGreen, width: 1)
+              : null,
+        ),
+        child: Text('$emoji $count',
+            style: const TextStyle(fontSize: 12, color: Colors.white)),
       ),
     );
   }

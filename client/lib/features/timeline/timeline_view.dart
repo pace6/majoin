@@ -23,17 +23,32 @@ class TimelineView extends StatefulWidget {
 class _TimelineViewState extends State<TimelineView> {
   Timeline? _timeline;
   final TimelineUiState _ui = TimelineUiState();
+  final ScrollController _scrollCtl = ScrollController();
   StreamSubscription? _syncSub;
 
   @override
   void initState() {
     super.initState();
     _open();
+    _scrollCtl.addListener(_onScroll);
     // Receipts arrive as ephemeral EDUs that don't fire timeline onChange.
     // Rebuild on every sync so read-avatars track peer receipts.
     _syncSub = MatrixClientService.instance.client.onSync.stream.listen((_) {
       if (mounted) setState(() {});
     });
+  }
+
+  /// List is reverse:true, so scrolling toward older messages moves toward
+  /// maxScrollExtent. Near the end, pull the next page of history.
+  void _onScroll() {
+    final tl = _timeline;
+    if (tl == null || !tl.canRequestHistory || tl.isRequestingHistory) return;
+    if (_scrollCtl.position.pixels >=
+        _scrollCtl.position.maxScrollExtent - 400) {
+      tl.requestHistory().then((_) {
+        if (mounted) setState(() {});
+      });
+    }
   }
 
   @override
@@ -73,6 +88,7 @@ class _TimelineViewState extends State<TimelineView> {
   @override
   void dispose() {
     _syncSub?.cancel();
+    _scrollCtl.dispose();
     _timeline?.cancelSubscriptions();
     _ui.dispose();
     super.dispose();
@@ -114,10 +130,24 @@ class _TimelineViewState extends State<TimelineView> {
           children: [
             Expanded(
               child: ListView.builder(
+                controller: _scrollCtl,
                 reverse: true,
                 padding: const EdgeInsets.symmetric(vertical: 8),
-                itemCount: events.length,
+                itemCount: events.length + (tl.canRequestHistory ? 1 : 0),
                 itemBuilder: (context, i) {
+                  // Trailing (oldest end) slot: history-loading spinner.
+                  if (i >= events.length) {
+                    return const Padding(
+                      padding: EdgeInsets.all(12),
+                      child: Center(
+                        child: SizedBox(
+                          width: 20,
+                          height: 20,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        ),
+                      ),
+                    );
+                  }
                   final e = events[i];
                   final newer = i - 1 >= 0 ? events[i - 1] : null;
                   final older = i + 1 < events.length ? events[i + 1] : null;
@@ -138,6 +168,7 @@ class _TimelineViewState extends State<TimelineView> {
                     children: [
                       MessageBubble(
                         event: e,
+                        timeline: tl,
                         showSender: isGroup && isStreakHead,
                         showAvatar: isStreakHead,
                         onLongPress: () =>

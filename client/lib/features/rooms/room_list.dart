@@ -13,10 +13,14 @@ class RoomList extends StatefulWidget {
     super.key,
     required this.onRoomTap,
     this.selectedRoomId,
+    this.query,
   });
 
   final void Function(Room room) onRoomTap;
   final String? selectedRoomId;
+
+  /// When non-empty, only rooms whose display name contains it are shown.
+  final String? query;
 
   @override
   State<RoomList> createState() => _RoomListState();
@@ -30,7 +34,7 @@ class _RoomListState extends State<RoomList> {
     return StreamBuilder(
       stream: _c.onSync.stream,
       builder: (context, _) {
-        final rooms = [..._c.rooms];
+        var rooms = [..._c.rooms];
         rooms.sort((a, b) {
           // invites pinned to top
           final aInv = a.membership == Membership.invite;
@@ -39,6 +43,14 @@ class _RoomListState extends State<RoomList> {
           return (b.lastEvent?.originServerTs ?? DateTime(0))
               .compareTo(a.lastEvent?.originServerTs ?? DateTime(0));
         });
+
+        final q = widget.query?.trim().toLowerCase();
+        if (q != null && q.isNotEmpty) {
+          rooms = rooms
+              .where((r) =>
+                  r.getLocalizedDisplayname().toLowerCase().contains(q))
+              .toList();
+        }
 
         if (rooms.isEmpty) {
           return Center(

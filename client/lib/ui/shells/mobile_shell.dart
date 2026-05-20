@@ -20,6 +20,21 @@ class MobileShell extends StatefulWidget {
 
 class _MobileShellState extends State<MobileShell> {
   int _tab = 1; // Default to Chats
+  bool _searching = false;
+  final _searchCtl = TextEditingController();
+
+  @override
+  void dispose() {
+    _searchCtl.dispose();
+    super.dispose();
+  }
+
+  void _stopSearch() {
+    setState(() {
+      _searching = false;
+      _searchCtl.clear();
+    });
+  }
 
   static const _tabs = <_TabSpec>[
     _TabSpec('tab.home', Icons.home_outlined, Icons.home),
@@ -39,6 +54,7 @@ class _MobileShellState extends State<MobileShell> {
       1 => RoomList(
           onRoomTap: (r) =>
               context.push('/rooms/${Uri.encodeComponent(r.id)}'),
+          query: _searching ? _searchCtl.text : null,
         ),
       2 => const _PlaceholderTab(label: 'VOOM', subtitle: 'Short videos'),
       3 => const _PlaceholderTab(label: 'News', subtitle: 'Daily feed'),
@@ -49,33 +65,54 @@ class _MobileShellState extends State<MobileShell> {
     return Scaffold(
       appBar: AppBar(
         titleSpacing: 12,
-        title: _tab == 1
-            ? MeChip(onTap: () => _showAccountSheet(context))
-            : Text(_title,
-                style: const TextStyle(
-                    fontWeight: FontWeight.w700, fontSize: 18)),
-        actions: _tab == 1
-            ? [
-                IconButton(
-                  tooltip: 'rooms.newChat'.tr,
-                  icon: const Icon(Icons.add_comment_outlined),
-                  onPressed: () async {
-                    final id = await showNewChatDialog(context);
-                    if (id != null && context.mounted) {
-                      context.push('/rooms/${Uri.encodeComponent(id)}');
-                    }
-                  },
+        leading: _searching
+            ? IconButton(
+                icon: const Icon(Icons.arrow_back),
+                onPressed: _stopSearch,
+              )
+            : null,
+        title: _searching
+            ? TextField(
+                controller: _searchCtl,
+                autofocus: true,
+                decoration: InputDecoration(
+                  hintText: 'common.search'.tr,
+                  border: InputBorder.none,
                 ),
-                IconButton(
-                  tooltip: 'common.search'.tr,
-                  icon: const Icon(Icons.search),
-                  onPressed: () {},
-                ),
-              ]
-            : [
-                IconButton(
-                    icon: const Icon(Icons.search), onPressed: () {}),
-              ],
+                onChanged: (_) => setState(() {}),
+              )
+            : _tab == 1
+                ? MeChip(onTap: () => _showAccountSheet(context))
+                : Text(_title,
+                    style: const TextStyle(
+                        fontWeight: FontWeight.w700, fontSize: 18)),
+        actions: _searching
+            ? const []
+            : _tab == 1
+                ? [
+                    IconButton(
+                      tooltip: 'rooms.newChat'.tr,
+                      icon: const Icon(Icons.add_comment_outlined),
+                      onPressed: () async {
+                        final id = await showNewChatDialog(context);
+                        if (id != null && context.mounted) {
+                          context
+                              .push('/rooms/${Uri.encodeComponent(id)}');
+                        }
+                      },
+                    ),
+                    IconButton(
+                      tooltip: 'common.search'.tr,
+                      icon: const Icon(Icons.search),
+                      onPressed: () => setState(() => _searching = true),
+                    ),
+                  ]
+                : [
+                    IconButton(
+                      icon: const Icon(Icons.search),
+                      onPressed: () => setState(() => _searching = true),
+                    ),
+                  ],
       ),
       body: body,
       bottomNavigationBar: Container(
