@@ -56,8 +56,8 @@ class _HomeTabState extends State<HomeTab> {
       builder: (context, _) {
         final joined =
             _c.rooms.where((r) => r.membership == Membership.join);
-        final friends = joined.where((r) => r.isDirectChat).toList();
-        final groups = joined.where((r) => !r.isDirectChat).toList();
+        final friends = joined.where(isOneToOne).toList();
+        final groups = joined.where((r) => !isOneToOne(r)).toList();
         final mxid = _c.userID ?? '';
         final name = (_profile?.displayName?.isNotEmpty ?? false)
             ? _profile!.displayName!

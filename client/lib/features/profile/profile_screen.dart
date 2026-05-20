@@ -9,6 +9,7 @@ import '../../core/util/mxid.dart';
 import '../../ui/theme/app_theme.dart';
 import '../../ui/widgets/pebble_icon.dart';
 import '../../ui/widgets/mxc_image.dart';
+import '../../core/util/room_ext.dart';
 
 /// Pebble-style profile: accent hero banner, avatar, stats, action cards.
 class ProfileScreen extends StatefulWidget {
@@ -50,8 +51,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
     final avatarMxc = _profile?.avatarUrl?.toString();
 
     final joined = _c.rooms.where((r) => r.membership == Membership.join);
-    final dms = joined.where((r) => r.isDirectChat).length;
-    final groups = joined.where((r) => !r.isDirectChat).length;
+    final dms = joined.where(isOneToOne).length;
+    final groups = joined.where((r) => !isOneToOne(r)).length;
 
     return ListView(
       padding: const EdgeInsets.fromLTRB(16, 8, 16, 110),

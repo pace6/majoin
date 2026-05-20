@@ -162,7 +162,7 @@ class _TimelineViewState extends State<TimelineView> {
       );
     }
     final events = tl.events.where(_visible).toList();
-    final isGroup = !widget.room.isDirectChat;
+    final isGroup = !isOneToOne(widget.room);
 
     return ChangeNotifierProvider.value(
       value: _ui,
@@ -342,6 +342,15 @@ class TimelineAppBar extends StatelessWidget implements PreferredSizeWidget {
 
   @override
   Widget build(BuildContext context) {
+    // Rebuild on every sync: a freshly created room has no heroes / m.direct
+    // yet, so the title and 1:1 detection only settle a sync or two later.
+    return StreamBuilder(
+      stream: room.client.onSync.stream,
+      builder: (context, _) => _bar(context),
+    );
+  }
+
+  Widget _bar(BuildContext context) {
     return AppBar(
       leading: leading,
       titleSpacing: 0,
@@ -361,7 +370,7 @@ class TimelineAppBar extends StatelessWidget implements PreferredSizeWidget {
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                 ),
-                if (!room.isDirectChat)
+                if (!isOneToOne(room))
                   Text(
                     '${room.summary.mJoinedMemberCount ?? 0} ${'home.members'.tr}',
                     style: const TextStyle(
@@ -372,7 +381,7 @@ class TimelineAppBar extends StatelessWidget implements PreferredSizeWidget {
           ),
         ],
       ),
-      actions: room.isDirectChat
+      actions: isOneToOne(room)
           ? [
               IconButton(
                 icon: const PebbleIcon(PIcon.phone, color: AppTheme.accent),
@@ -404,7 +413,12 @@ String? _callPeer(Room room) {
   final me = room.client.userID;
   final others =
       room.getParticipants().map((u) => u.id).where((id) => id != me).toSet();
-  return others.length == 1 ? others.first : null;
+  if (others.length == 1) return others.first;
+  // members not loaded yet — fall back to the summary heroes
+  final heroes = (room.summary.mHeroes ?? const <String>[])
+      .where((h) => h.isNotEmpty && h != me)
+      .toList();
+  return heroes.length == 1 ? heroes.first : null;
 }
 
 Future<void> _startCall(BuildContext context, Room room,
@@ -445,7 +459,7 @@ class _RoomHeaderAvatarState extends State<_RoomHeaderAvatar> {
   Widget build(BuildContext context) {
     final name = roomTitle(room);
     final mxc = room.avatar?.toString();
-    final isGroup = !room.isDirectChat;
+    final isGroup = !isOneToOne(room);
     final radius =
         isGroup ? BorderRadius.circular(10) : BorderRadius.circular(18);
 

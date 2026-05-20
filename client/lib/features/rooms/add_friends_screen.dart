@@ -10,6 +10,7 @@ import '../../core/client/matrix_client.dart';
 import '../../core/config.dart';
 import '../../core/i18n/strings.dart';
 import '../../core/util/mxid.dart';
+import '../../core/util/room_ext.dart';
 import '../../ui/theme/app_theme.dart';
 import '../../ui/widgets/pebble_icon.dart';
 import '../../ui/widgets/mxc_image.dart';
@@ -107,7 +108,9 @@ class _AddFriendsScreenState extends State<AddFriendsScreen> {
     if (_openingUserId != null) return;
     setState(() => _openingUserId = u.userId);
     try {
-      final id = await _c.startDirectChat(u.userId);
+      // Reuse an existing chat with this peer instead of creating a duplicate.
+      final id = findDirectRoom(_c, u.userId)?.id ??
+          await _c.startDirectChat(u.userId);
       if (mounted) context.push('/rooms/${Uri.encodeComponent(id)}');
     } catch (e) {
       if (mounted) {
