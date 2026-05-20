@@ -113,6 +113,24 @@ class MessageBubble extends StatelessWidget {
   }
 
   Widget _renderEvent(BuildContext context, Event display, bool isEdited) {
+    if (display.type == 'm.room.encrypted') {
+      // Decryption failed — no megolm key for this message on this device.
+      final fg = _mine ? AppTheme.myBubbleText : AppTheme.theirBubbleText;
+      return Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(Icons.lock_outline, size: 14, color: fg.withValues(alpha: 0.7)),
+          const SizedBox(width: 6),
+          Flexible(
+            child: Text('chat.undecryptable'.tr,
+                style: TextStyle(
+                    fontSize: 13,
+                    fontStyle: FontStyle.italic,
+                    color: fg.withValues(alpha: 0.7))),
+          ),
+        ],
+      );
+    }
     if (display.type == kFlexEventType) {
       final flexJson = display.content['app.majoin.flex'];
       if (flexJson is Map) {

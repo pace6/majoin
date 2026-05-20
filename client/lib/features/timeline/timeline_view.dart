@@ -272,7 +272,10 @@ class _TimelineViewState extends State<TimelineView> {
     if (e.redacted) return false;
     return e.type == 'm.room.message' ||
         e.type == 'm.sticker' ||
-        e.type == 'app.majoin.flex';
+        e.type == 'app.majoin.flex' ||
+        // Undecryptable messages still occupy a row so the timeline reflects
+        // reality (and stays long enough to scroll).
+        e.type == 'm.room.encrypted';
   }
 
   static bool _sameDay(DateTime a, DateTime b) =>
