@@ -4,6 +4,7 @@ import 'package:matrix/matrix.dart';
 import '../../core/client/matrix_client.dart';
 import '../../core/i18n/strings.dart';
 import 'timeline_state.dart';
+import '../../core/util/room_ext.dart';
 
 const _quickReactions = ['👍', '❤️', '😂', '😮', '😢', '🙏'];
 
@@ -146,12 +147,12 @@ Future<void> _forward(BuildContext context, Event event) async {
                       radius: 16,
                       backgroundColor: const Color(0xFFE0E0E0),
                       child: Text(
-                        r.getLocalizedDisplayname().characters.first
+                        roomTitle(r).characters.first
                             .toUpperCase(),
                         style: const TextStyle(fontSize: 12),
                       ),
                     ),
-                    title: Text(r.getLocalizedDisplayname()),
+                    title: Text(roomTitle(r)),
                     onTap: () => Navigator.of(sheetCtx).pop(r),
                   ),
               ],

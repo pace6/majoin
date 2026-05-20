@@ -3,6 +3,7 @@ import 'package:intl/intl.dart';
 import 'package:matrix/matrix.dart';
 import '../../core/client/matrix_client.dart';
 import '../../core/i18n/strings.dart';
+import '../../core/util/room_ext.dart';
 import '../../ui/theme/app_theme.dart';
 import '../../ui/widgets/pebble_icon.dart';
 import '../../ui/widgets/mxc_image.dart';
@@ -49,7 +50,7 @@ class _RoomListState extends State<RoomList> {
         if (q != null && q.isNotEmpty) {
           rooms = rooms
               .where((r) =>
-                  r.getLocalizedDisplayname().toLowerCase().contains(q))
+                  roomTitle(r).toLowerCase().contains(q))
               .toList();
         }
 
@@ -151,7 +152,7 @@ class _RoomTileState extends State<_RoomTile> {
           children: [
             _Avatar(
               url: r.avatar?.toString(),
-              name: r.getLocalizedDisplayname(),
+              name: roomTitle(r),
             ),
             const SizedBox(width: 12),
             Expanded(
@@ -159,7 +160,7 @@ class _RoomTileState extends State<_RoomTile> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    r.getLocalizedDisplayname(),
+                    roomTitle(r),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: const TextStyle(

@@ -5,6 +5,7 @@ import 'package:matrix/matrix.dart';
 import '../../core/client/matrix_client.dart';
 import '../../core/i18n/strings.dart';
 import '../../core/util/avatar.dart';
+import '../../core/util/room_ext.dart';
 import '../../core/util/mxid.dart';
 import '../../ui/theme/app_theme.dart';
 import '../../ui/widgets/pebble_icon.dart';
@@ -242,7 +243,7 @@ class _HomeTabState extends State<HomeTab> {
   }
 
   Widget _friendCircle(Room r) {
-    final name = r.getLocalizedDisplayname();
+    final name = roomTitle(r);
     return GestureDetector(
       onTap: () => _openRoom(r),
       child: Padding(
@@ -310,7 +311,7 @@ class _HomeTabState extends State<HomeTab> {
   }
 
   Widget _groupRow(Room r, bool last) {
-    final name = r.getLocalizedDisplayname();
+    final name = roomTitle(r);
     final members = r.summary.mJoinedMemberCount ?? 0;
     return Column(
       children: [

@@ -9,6 +9,7 @@ import 'package:go_router/go_router.dart';
 import 'package:matrix/matrix.dart';
 
 import '../config.dart';
+import '../util/room_ext.dart';
 
 const _channelId = 'majoin-messages';
 const _channelName = 'Messages';
@@ -150,7 +151,7 @@ class PushService {
     final body = e.body.isNotEmpty
         ? e.body
         : (e.type == 'm.sticker' ? '[sticker]' : '[message]');
-    final title = e.room.getLocalizedDisplayname();
+    final title = roomTitle(e.room);
 
     await _local.show(
       e.room.id.hashCode,

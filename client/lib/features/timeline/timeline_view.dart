@@ -11,6 +11,7 @@ import 'message_bubble.dart';
 import 'timeline_state.dart';
 import '../../core/client/matrix_client.dart';
 import '../../core/util/avatar.dart';
+import '../../core/util/room_ext.dart';
 import '../../ui/theme/app_theme.dart';
 import '../../ui/widgets/mxc_image.dart';
 import '../../ui/widgets/pebble_icon.dart';
@@ -354,7 +355,7 @@ class TimelineAppBar extends StatelessWidget implements PreferredSizeWidget {
               mainAxisSize: MainAxisSize.min,
               children: [
                 Text(
-                  room.getLocalizedDisplayname(),
+                  roomTitle(room),
                   style: const TextStyle(
                       fontSize: 15.5, fontWeight: FontWeight.w600),
                   maxLines: 1,
@@ -442,7 +443,7 @@ class _RoomHeaderAvatarState extends State<_RoomHeaderAvatar> {
 
   @override
   Widget build(BuildContext context) {
-    final name = room.getLocalizedDisplayname();
+    final name = roomTitle(room);
     final mxc = room.avatar?.toString();
     final isGroup = !room.isDirectChat;
     final radius =

@@ -8,6 +8,7 @@ import 'package:matrix/matrix.dart';
 import 'package:webrtc_interface/webrtc_interface.dart';
 import '../../core/client/matrix_client.dart';
 import '../../core/i18n/strings.dart';
+import '../../core/util/room_ext.dart';
 import 'call_screen.dart';
 
 /// Implements [WebRTCDelegate] + owns the [VoIP] singleton.
@@ -99,7 +100,7 @@ class CallService implements WebRTCDelegate {
     await stopRingtone();
     await _notif.show(
       session.callId.hashCode,
-      session.room.getLocalizedDisplayname(),
+      roomTitle(session.room),
       'call.missed'.tr,
       const NotificationDetails(
         android: AndroidNotificationDetails(

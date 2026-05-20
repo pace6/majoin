@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_webrtc/flutter_webrtc.dart';
 import 'package:matrix/matrix.dart';
 import '../../core/i18n/strings.dart';
+import '../../core/util/room_ext.dart';
 import '../../ui/theme/app_theme.dart';
 import '../../ui/widgets/pebble_icon.dart';
 import '../../ui/widgets/mxc_image.dart';
@@ -177,7 +178,7 @@ class _CallScreenState extends State<CallScreen> {
                       _callerAvatar(140),
                       const SizedBox(height: 18),
                       Text(
-                        s.room.getLocalizedDisplayname(),
+                        roomTitle(s.room),
                         style: const TextStyle(
                             color: Colors.white,
                             fontSize: 28,
@@ -203,7 +204,7 @@ class _CallScreenState extends State<CallScreen> {
                     child: Column(
                       children: [
                         Text(
-                          s.room.getLocalizedDisplayname(),
+                          roomTitle(s.room),
                           style: const TextStyle(
                               color: Colors.white,
                               fontSize: 20,
@@ -353,7 +354,7 @@ class _CallScreenState extends State<CallScreen> {
 
   Widget _callerAvatar(double size) {
     final mxc = s.room.avatar?.toString();
-    final name = s.room.getLocalizedDisplayname();
+    final name = roomTitle(s.room);
     return Container(
       padding: const EdgeInsets.all(4),
       decoration: BoxDecoration(
