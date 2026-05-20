@@ -30,6 +30,8 @@ enum PIcon {
   film,
   smile,
   chevron,
+  speaker,
+  check,
 }
 
 class PebbleIcon extends StatelessWidget {
@@ -181,5 +183,9 @@ String _svg(PIcon i, Color c, bool filled) {
           c);
     case PIcon.chevron:
       return _stroke('M9 6l6 6-6 6', c, sw: 1.9);
+    case PIcon.speaker:
+      return _stroke('M4 9h4l5-4v14l-5-4H4zM17 9a4 4 0 0 1 0 6M20 6a8 8 0 0 1 0 12', c);
+    case PIcon.check:
+      return _stroke('M5 12l4 4 10-10', c, sw: 2.2);
   }
 }

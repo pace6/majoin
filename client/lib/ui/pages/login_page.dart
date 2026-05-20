@@ -6,6 +6,7 @@ import '../../core/config.dart';
 import '../../core/i18n/strings.dart';
 import '../../core/storage/prefs.dart';
 import '../theme/app_theme.dart';
+import '../widgets/pebble_icon.dart';
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
@@ -98,10 +99,10 @@ class _LoginPageState extends State<LoginPage> {
                         crossAxisAlignment: CrossAxisAlignment.stretch,
                         children: [
                           _field(_user, 'login.username'.tr,
-                              icon: Icons.person_outline),
+                              icon: PIcon.person),
                           const SizedBox(height: 12),
                           _field(_pass, 'login.password'.tr,
-                              icon: Icons.lock_outline, obscure: true),
+                              icon: PIcon.lock, obscure: true),
                           const SizedBox(height: 8),
                           _serverLabel(),
                           const SizedBox(height: 12),
@@ -188,7 +189,7 @@ class _LoginPageState extends State<LoginPage> {
       padding: const EdgeInsets.symmetric(horizontal: 4),
       child: Row(
         children: [
-          const Icon(Icons.cloud_outlined, size: 14, color: Colors.black54),
+          const PebbleIcon(PIcon.globe, size: 14, color: AppTheme.subtleText),
           const SizedBox(width: 6),
           Text(host,
               style: const TextStyle(fontSize: 12, color: Colors.black54)),
@@ -198,13 +199,13 @@ class _LoginPageState extends State<LoginPage> {
   }
 
   Widget _field(TextEditingController c, String label,
-      {IconData? icon, bool obscure = false}) {
+      {PIcon? icon, bool obscure = false}) {
     return TextField(
       controller: c,
       obscureText: obscure,
       decoration: InputDecoration(
         labelText: label,
-        prefixIcon: icon == null ? null : Icon(icon, size: 20),
+        prefixIcon: icon == null ? null : PebbleIcon(icon, size: 20),
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
         ),

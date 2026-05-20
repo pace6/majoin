@@ -4,6 +4,7 @@ import 'package:matrix/matrix.dart';
 import '../../core/client/matrix_client.dart';
 import '../../core/i18n/strings.dart';
 import '../../ui/theme/app_theme.dart';
+import '../../ui/widgets/pebble_icon.dart';
 import '../../ui/widgets/mxc_image.dart';
 
 /// Room list panel. On mobile = full screen. On desktop = left pane.
@@ -205,13 +206,13 @@ class _RoomTileState extends State<_RoomTile> {
                           mainAxisSize: MainAxisSize.min,
                           children: [
                             _MiniAction(
-                              icon: Icons.close,
+                              icon: PIcon.close,
                               color: Colors.red,
                               onTap: _decline,
                             ),
                             const SizedBox(width: 4),
                             _MiniAction(
-                              icon: Icons.check,
+                              icon: PIcon.check,
                               color: AppTheme.lineGreen,
                               onTap: _accept,
                             ),
@@ -259,7 +260,7 @@ class _MiniAction extends StatelessWidget {
     required this.color,
     required this.onTap,
   });
-  final IconData icon;
+  final PIcon icon;
   final Color color;
   final VoidCallback onTap;
 
@@ -270,7 +271,7 @@ class _MiniAction extends StatelessWidget {
       borderRadius: BorderRadius.circular(14),
       child: Padding(
         padding: const EdgeInsets.all(4),
-        child: Icon(icon, color: color, size: 20),
+        child: PebbleIcon(icon, color: color, size: 20),
       ),
     );
   }

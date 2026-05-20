@@ -5,6 +5,7 @@ import 'package:flutter_webrtc/flutter_webrtc.dart';
 import 'package:matrix/matrix.dart';
 import '../../core/i18n/strings.dart';
 import '../../ui/theme/app_theme.dart';
+import '../../ui/widgets/pebble_icon.dart';
 import '../../ui/widgets/mxc_image.dart';
 
 /// Full-screen call UI for a single [CallSession] — handles both directions.
@@ -277,13 +278,13 @@ class _CallScreenState extends State<CallScreen> {
       mainAxisAlignment: MainAxisAlignment.spaceEvenly,
       children: [
         _CircleBtn(
-          icon: Icons.call_end,
+          icon: PIcon.phone,
           color: Colors.red,
           label: 'call.decline'.tr,
           onTap: _hangup,
         ),
         _CircleBtn(
-          icon: Icons.call,
+          icon: PIcon.phone,
           color: const Color(0xFF06C755),
           label: 'call.accept'.tr,
           onTap: _answer,
@@ -300,28 +301,28 @@ class _CallScreenState extends State<CallScreen> {
           mainAxisAlignment: MainAxisAlignment.spaceEvenly,
           children: [
             _CallBtn(
-              icon: _muted ? Icons.mic_off : Icons.mic,
+              icon: PIcon.mic,
               label: 'call.mic'.tr,
               on: _muted,
               onTap: _toggleMute,
             ),
             if (_isVideo)
               _CallBtn(
-                icon: _videoMuted ? Icons.videocam_off : Icons.videocam,
+                icon: PIcon.video,
                 label: 'call.camera'.tr,
                 on: _videoMuted,
                 onTap: _toggleVideo,
               ),
             if (_isVideo)
               _CallBtn(
-                icon: Icons.cameraswitch_outlined,
+                icon: PIcon.camera,
                 label: 'call.flip'.tr,
                 on: false,
                 onTap: _switchCamera,
               ),
             if (!_isVideo)
               _CallBtn(
-                icon: _speakerOn ? Icons.volume_up : Icons.volume_down,
+                icon: PIcon.speaker,
                 label: 'call.speaker'.tr,
                 on: _speakerOn,
                 onTap: _toggleSpeaker,
@@ -340,7 +341,7 @@ class _CallScreenState extends State<CallScreen> {
                   borderRadius: BorderRadius.circular(30)),
             ),
             onPressed: _hangup,
-            icon: const Icon(Icons.call_end),
+            icon: const PebbleIcon(PIcon.phone, color: Colors.white),
             label: Text('call.hangUp'.tr,
                 style: const TextStyle(
                     fontSize: 16, fontWeight: FontWeight.w700)),
@@ -394,7 +395,7 @@ class _CallBtn extends StatelessWidget {
     required this.on,
     required this.onTap,
   });
-  final IconData icon;
+  final PIcon icon;
   final String label;
   final bool on;
   final VoidCallback onTap;
@@ -414,7 +415,7 @@ class _CallBtn extends StatelessWidget {
               color: on ? Colors.white : Colors.white24,
               shape: BoxShape.circle,
             ),
-            child: Icon(icon,
+            child: PebbleIcon(icon,
                 size: 24, color: on ? const Color(0xFF0A0A0C) : Colors.white),
           ),
         ),
@@ -434,7 +435,7 @@ class _CircleBtn extends StatelessWidget {
     required this.onTap,
     this.label,
   });
-  final IconData icon;
+  final PIcon icon;
   final Color color;
   final VoidCallback onTap;
   final String? label;
@@ -450,7 +451,7 @@ class _CircleBtn extends StatelessWidget {
           child: Container(
             width: 64, height: 64,
             decoration: BoxDecoration(color: color, shape: BoxShape.circle),
-            child: Icon(icon, color: Colors.white, size: 28),
+            child: PebbleIcon(icon, color: Colors.white, size: 28),
           ),
         ),
         if (label != null) ...[

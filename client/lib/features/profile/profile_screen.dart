@@ -7,6 +7,7 @@ import '../../core/i18n/strings.dart';
 import '../../core/util/avatar.dart';
 import '../../core/util/mxid.dart';
 import '../../ui/theme/app_theme.dart';
+import '../../ui/widgets/pebble_icon.dart';
 import '../../ui/widgets/mxc_image.dart';
 
 /// Pebble-style profile: accent hero banner, avatar, stats, action cards.
@@ -111,7 +112,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                             shape: BoxShape.circle,
                             border: Border.all(color: AppTheme.bg, width: 2),
                           ),
-                          child: const Icon(Icons.camera_alt,
+                          child: const PebbleIcon(PIcon.camera,
                               size: 12, color: Colors.white),
                         ),
                       ),
@@ -152,7 +153,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 children: [
                   Expanded(
                     child: _actionCard(
-                      icon: Icons.qr_code_2,
+                      icon: PIcon.qr,
                       label: 'profile.myQr'.tr,
                       tag: 'profile.share'.tr,
                       onTap: () => _showQr(mxid),
@@ -161,7 +162,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   const SizedBox(width: 10),
                   Expanded(
                     child: _actionCard(
-                      icon: Icons.person_add_alt_1,
+                      icon: PIcon.plus,
                       label: 'home.addFriend'.tr.replaceAll('\n', ' '),
                       tag: 'profile.invite'.tr,
                       onTap: () => context.push('/add-friends'),
@@ -204,7 +205,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   Widget _actionCard({
-    required IconData icon,
+    required PIcon icon,
     required String label,
     required String tag,
     required VoidCallback onTap,
@@ -224,7 +225,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Icon(icon, size: 22, color: AppTheme.accent),
+                PebbleIcon(icon, size: 22, color: AppTheme.accent),
                 Text(tag,
                     style: const TextStyle(
                         fontSize: 11,

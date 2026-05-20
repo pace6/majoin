@@ -11,6 +11,7 @@ import '../../core/config.dart';
 import '../../core/i18n/strings.dart';
 import '../../core/util/mxid.dart';
 import '../../ui/theme/app_theme.dart';
+import '../../ui/widgets/pebble_icon.dart';
 import '../../ui/widgets/mxc_image.dart';
 
 /// A registered user from the backend `/api/users` directory.
@@ -138,9 +139,9 @@ class _AddFriendsScreenState extends State<AddFriendsScreen> {
                 scrollDirection: Axis.horizontal,
                 padding: const EdgeInsets.symmetric(horizontal: 12),
                 children: [
-                  _pill(_Tab.search, Icons.search, 'addFriends.search'.tr),
-                  _pill(_Tab.qr, Icons.qr_code_2, 'addFriends.qr'.tr),
-                  _pill(_Tab.suggested, Icons.person_outline,
+                  _pill(_Tab.search, PIcon.search, 'addFriends.search'.tr),
+                  _pill(_Tab.qr, PIcon.qr, 'addFriends.qr'.tr),
+                  _pill(_Tab.suggested, PIcon.person,
                       'addFriends.suggested'.tr),
                 ],
               ),
@@ -152,7 +153,7 @@ class _AddFriendsScreenState extends State<AddFriendsScreen> {
     );
   }
 
-  Widget _pill(_Tab tab, IconData icon, String label) {
+  Widget _pill(_Tab tab, PIcon icon, String label) {
     final active = _tab == tab;
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 10),
@@ -167,7 +168,7 @@ class _AddFriendsScreenState extends State<AddFriendsScreen> {
           ),
           child: Row(
             children: [
-              Icon(icon,
+              PebbleIcon(icon,
                   size: 16,
                   color: active ? Colors.white : AppTheme.subtleText),
               const SizedBox(width: 6),
@@ -223,7 +224,7 @@ class _AddFriendsScreenState extends State<AddFriendsScreen> {
             onChanged: (v) => setState(() => _query = v),
             decoration: InputDecoration(
               hintText: 'addFriends.searchHint'.tr,
-              prefixIcon: const Icon(Icons.search, size: 20),
+              prefixIcon: const PebbleIcon(PIcon.search, size: 20),
               isDense: true,
               filled: true,
               fillColor: const Color(0x0D000000),

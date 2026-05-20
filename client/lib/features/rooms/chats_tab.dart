@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../core/i18n/strings.dart';
+import '../../ui/widgets/pebble_icon.dart';
 import '../../ui/theme/app_theme.dart';
 import 'new_chat_dialog.dart';
 import 'room_list.dart';
@@ -49,7 +50,7 @@ class _ChatsTabState extends State<ChatsTab> {
                 const Spacer(),
                 IconButton(
                   tooltip: 'rooms.newChat'.tr,
-                  icon: const Icon(Icons.add_comment_outlined),
+                  icon: const PebbleIcon(PIcon.edit),
                   onPressed: _newChat,
                 ),
               ],
@@ -66,7 +67,7 @@ class _ChatsTabState extends State<ChatsTab> {
                 hintText: 'common.search'.tr,
                 hintStyle: const TextStyle(color: AppTheme.subtleText),
                 prefixIcon:
-                    const Icon(Icons.search, size: 20, color: AppTheme.subtleText),
+                    const PebbleIcon(PIcon.search, size: 20, color: AppTheme.subtleText),
                 prefixIconConstraints:
                     const BoxConstraints(minWidth: 38, minHeight: 38),
                 isDense: true,

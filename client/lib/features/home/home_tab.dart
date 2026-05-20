@@ -7,6 +7,7 @@ import '../../core/i18n/strings.dart';
 import '../../core/util/avatar.dart';
 import '../../core/util/mxid.dart';
 import '../../ui/theme/app_theme.dart';
+import '../../ui/widgets/pebble_icon.dart';
 import '../../ui/widgets/mxc_image.dart';
 import '../stickers/sticker_store.dart';
 
@@ -90,7 +91,7 @@ class _HomeTabState extends State<HomeTab> {
                               border:
                                   Border.all(color: AppTheme.bg, width: 1.5),
                             ),
-                            child: const Icon(Icons.camera_alt,
+                            child: const PebbleIcon(PIcon.camera,
                                 size: 9, color: Colors.white),
                           ),
                         ),
@@ -138,21 +139,21 @@ class _HomeTabState extends State<HomeTab> {
               child: Row(
                 children: [
                   _quickAction(
-                    icon: Icons.qr_code_2,
+                    icon: PIcon.qr,
                     label: 'home.qrCode'.tr.replaceAll('\n', ' '),
                     tint: const Color(0xFF3A6FF0),
                     onTap: () => _showQr(mxid),
                   ),
                   const SizedBox(width: 10),
                   _quickAction(
-                    icon: Icons.person_add_alt_1,
+                    icon: PIcon.plus,
                     label: 'home.addFriend'.tr.replaceAll('\n', ' '),
                     tint: AppTheme.accent,
                     onTap: _addFriends,
                   ),
                   const SizedBox(width: 10),
                   _quickAction(
-                    icon: Icons.emoji_emotions_outlined,
+                    icon: PIcon.smile,
                     label: 'home.stickerShop'.tr.replaceAll('\n', ' '),
                     tint: const Color(0xFFE86A5C),
                     onTap: () => Navigator.of(context).push(
@@ -227,7 +228,7 @@ class _HomeTabState extends State<HomeTab> {
                     width: 1.5,
                     style: BorderStyle.solid),
               ),
-              child: const Icon(Icons.add,
+              child: const PebbleIcon(PIcon.plus,
                   size: 20, color: AppTheme.subtleText),
             ),
             const SizedBox(height: 6),
@@ -267,7 +268,7 @@ class _HomeTabState extends State<HomeTab> {
   }
 
   Widget _quickAction({
-    required IconData icon,
+    required PIcon icon,
     required String label,
     required Color tint,
     required VoidCallback onTap,
@@ -291,7 +292,7 @@ class _HomeTabState extends State<HomeTab> {
                   color: tint,
                   borderRadius: BorderRadius.circular(12),
                 ),
-                child: Icon(icon, size: 20, color: Colors.white),
+                child: PebbleIcon(icon, size: 20, color: Colors.white),
               ),
               const SizedBox(height: 7),
               Text(label,
@@ -343,7 +344,7 @@ class _HomeTabState extends State<HomeTab> {
                     ],
                   ),
                 ),
-                const Icon(Icons.chevron_right,
+                const PebbleIcon(PIcon.chevron,
                     size: 18, color: AppTheme.subtleText),
               ],
             ),
