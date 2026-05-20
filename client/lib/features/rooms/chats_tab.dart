@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../core/i18n/strings.dart';
-import '../../ui/shells/mobile_shell.dart' show showAccountSheet;
 import '../../ui/theme/app_theme.dart';
 import 'new_chat_dialog.dart';
 import 'room_list.dart';
@@ -48,11 +47,6 @@ class _ChatsTabState extends State<ChatsTab> {
                     style: const TextStyle(
                         fontSize: 28, fontWeight: FontWeight.w800)),
                 const Spacer(),
-                IconButton(
-                  tooltip: 'common.account'.tr,
-                  icon: const Icon(Icons.account_circle_outlined),
-                  onPressed: () => showAccountSheet(context),
-                ),
                 IconButton(
                   tooltip: 'rooms.newChat'.tr,
                   icon: const Icon(Icons.add_comment_outlined),

@@ -1,16 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:matrix/matrix.dart';
-import '../../core/client/matrix_client.dart';
 import '../../core/i18n/strings.dart';
-import '../../core/util/mxid.dart';
 import '../../features/home/home_tab.dart';
+import '../../features/profile/profile_screen.dart';
 import '../../features/rooms/chats_tab.dart';
-import '../../features/rooms/user_directory.dart';
+import '../../features/settings/settings_screen.dart';
 import '../../features/timeline/timeline_view.dart';
 import '../theme/app_theme.dart';
 
-/// Mobile shell: Home / Chats / Friends.
+/// Mobile shell: Home / Chats / Profile / Settings (Pebble layout).
 class MobileShell extends StatefulWidget {
   const MobileShell({super.key});
 
@@ -24,7 +23,8 @@ class _MobileShellState extends State<MobileShell> {
   static const _tabs = <_TabSpec>[
     _TabSpec('tab.home', Icons.home_outlined, Icons.home),
     _TabSpec('tab.chats', Icons.chat_bubble_outline, Icons.chat_bubble),
-    _TabSpec('tab.friends', Icons.people_outline, Icons.people),
+    _TabSpec('tab.profile', Icons.person_outline, Icons.person),
+    _TabSpec('tab.settings', Icons.settings_outlined, Icons.settings),
   ];
 
   @override
@@ -32,12 +32,13 @@ class _MobileShellState extends State<MobileShell> {
     final body = switch (_tab) {
       0 => const HomeTab(),
       1 => const ChatsTab(),
-      2 => const UserDirectory(),
+      2 => const ProfileScreen(),
+      3 => const SettingsScreen(),
       _ => const SizedBox.shrink(),
     };
 
     return Scaffold(
-      // Chats draws its own large-title header; Home and Friends use the bar.
+      // Chats draws its own large-title header; the rest use a plain bar.
       appBar: _tab == 1
           ? null
           : AppBar(
@@ -51,7 +52,7 @@ class _MobileShellState extends State<MobileShell> {
         decoration: const BoxDecoration(
           border: Border(
               top: BorderSide(color: AppTheme.dividerColor, width: 0.5)),
-          color: Colors.white,
+          color: AppTheme.bg,
         ),
         child: SafeArea(
           top: false,
@@ -95,7 +96,7 @@ class _TabButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final color = selected ? const Color(0xFF1A1A1A) : const Color(0xFF9E9E9E);
+    final color = selected ? AppTheme.accent : AppTheme.subtleText;
     return InkWell(
       onTap: onTap,
       child: Padding(
@@ -104,74 +105,18 @@ class _TabButton extends StatelessWidget {
           mainAxisSize: MainAxisSize.min,
           children: [
             Icon(selected ? spec.iconActive : spec.icon, color: color, size: 24),
-            const SizedBox(height: 2),
+            const SizedBox(height: 3),
             Text(spec.label.tr,
                 style: TextStyle(
                     color: color,
-                    fontSize: 10,
+                    fontSize: 10.5,
                     fontWeight:
-                        selected ? FontWeight.w600 : FontWeight.normal)),
+                        selected ? FontWeight.w600 : FontWeight.w500)),
           ],
         ),
       ),
     );
   }
-}
-
-/// Account bottom sheet — profile, language, security, sign out.
-Future<void> showAccountSheet(BuildContext context) async {
-  final mxid = MatrixClientService.instance.client.userID ?? '';
-  final lc = LocaleController.instance;
-  await showModalBottomSheet(
-    context: context,
-    showDragHandle: true,
-    builder: (sheetCtx) => SafeArea(
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          ListTile(
-            leading: const Icon(Icons.account_circle_outlined),
-            title: Text('common.account'.tr),
-            subtitle: Text(localpartOf(mxid)),
-          ),
-          const Divider(height: 1),
-          ListTile(
-            leading: const Icon(Icons.language),
-            title: Text('common.language'.tr),
-            trailing: SegmentedButton<String>(
-              segments: const [
-                ButtonSegment(value: 'th', label: Text('TH')),
-                ButtonSegment(value: 'en', label: Text('EN')),
-              ],
-              selected: {lc.locale.languageCode},
-              onSelectionChanged: (s) =>
-                  lc.setLocale(Locale(s.first)),
-              showSelectedIcon: false,
-            ),
-          ),
-          const Divider(height: 1),
-          ListTile(
-            leading: const Icon(Icons.shield_outlined),
-            title: Text('security.title'.tr),
-            onTap: () {
-              Navigator.of(sheetCtx).pop();
-              context.push('/security');
-            },
-          ),
-          const Divider(height: 1),
-          ListTile(
-            leading: const Icon(Icons.logout, color: Colors.red),
-            title: Text('common.signOut'.tr,
-                style: const TextStyle(color: Colors.red)),
-            onTap: () async {
-              Navigator.of(sheetCtx).pop();
-              await MatrixClientService.instance.logout();
-            },
-          ),
-        ],
-      ),
-    ),
-  );
 }
 
 class MobileTimelinePage extends StatelessWidget {
