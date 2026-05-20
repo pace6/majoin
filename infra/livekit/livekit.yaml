@@ -1,0 +1,25 @@
+# LiveKit SFU config for majoin group calls.
+# Docs: https://docs.livekit.io/home/self-hosting/deployment/
+#
+# Generate API key/secret:  docker run --rm livekit/livekit-server generate-keys
+# Then replace the placeholder under `keys:` and mirror it into the
+# lk-jwt-service env vars in docker-compose.yml.
+
+port: 7880
+
+rtc:
+  tcp_port: 7881
+  # UDP range for media. Must be open on the host firewall.
+  port_range_start: 50000
+  port_range_end: 50200
+  use_external_ip: true
+
+# Single API key pair. Key on the left, secret on the right.
+keys:
+  REPLACE_WITH_LIVEKIT_API_KEY: REPLACE_WITH_LIVEKIT_API_SECRET
+
+logging:
+  level: info
+
+# E2EE: media frames are encrypted end-to-end by the clients; the SFU only
+# forwards them. No server config needed beyond forwarding.

@@ -41,5 +41,23 @@ chat.tokens2.io {
 	}
 }
 
+# ---- livekit.tokens2.io (group-call SFU + JWT service) ----
+livekit.tokens2.io {
+	tls /etc/ssl/cloudflare/tokens2.io.pem /etc/ssl/cloudflare/tokens2.io.key
+
+	# JWT service: client exchanges a Matrix OpenID token for a LiveKit JWT.
+	handle /sfu/get {
+		reverse_proxy 127.0.0.1:8080
+	}
+	handle /healthz {
+		reverse_proxy 127.0.0.1:8080
+	}
+
+	# LiveKit signalling WebSocket + everything else.
+	handle {
+		reverse_proxy 127.0.0.1:7880
+	}
+}
+
 # Other sites (admin/bz/lakkana/salesdee/shop/taemdee) live in the live
 # Caddyfile on the VPS — omitted here, not part of the majoin project.

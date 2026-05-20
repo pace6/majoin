@@ -49,3 +49,27 @@ services:
     volumes:
       - ./coturn/turnserver.conf:/etc/turnserver.conf:ro
     command: ["-c", "/etc/turnserver.conf"]
+
+  # LiveKit SFU — media routing for group calls (MatrixRTC).
+  # host networking so the RTC UDP port range maps directly.
+  livekit:
+    image: livekit/livekit-server:latest
+    restart: unless-stopped
+    network_mode: host
+    volumes:
+      - ./livekit/livekit.yaml:/etc/livekit.yaml:ro
+    command: ["--config", "/etc/livekit.yaml"]
+
+  # lk-jwt-service — exchanges a Matrix OpenID token for a LiveKit JWT.
+  # The client hits this at /sfu/get; it must share LIVEKIT_KEY/SECRET with
+  # livekit/livekit.yaml.
+  lk-jwt-service:
+    image: ghcr.io/element-hq/lk-jwt-service:latest
+    restart: unless-stopped
+    environment:
+      LIVEKIT_URL: "wss://livekit.tokens2.io"
+      LIVEKIT_KEY: "REPLACE_WITH_LIVEKIT_API_KEY"
+      LIVEKIT_SECRET: "REPLACE_WITH_LIVEKIT_API_SECRET"
+      LK_JWT_PORT: "8080"
+    ports:
+      - "8080:8080"
