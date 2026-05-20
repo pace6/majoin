@@ -10,6 +10,7 @@ import 'message_actions.dart';
 import 'message_bubble.dart';
 import 'timeline_state.dart';
 import '../../core/client/matrix_client.dart';
+import '../../core/util/avatar.dart';
 import '../../ui/theme/app_theme.dart';
 import '../../ui/widgets/mxc_image.dart';
 import '../../ui/widgets/pebble_icon.dart';
@@ -454,18 +455,32 @@ Future<void> _startCall(BuildContext context, Room room,
 }
 
 /// 36px room avatar in the chat header — round for DMs, soft-square for groups.
-class _RoomHeaderAvatar extends StatelessWidget {
+class _RoomHeaderAvatar extends StatefulWidget {
   const _RoomHeaderAvatar({required this.room});
   final Room room;
+
+  @override
+  State<_RoomHeaderAvatar> createState() => _RoomHeaderAvatarState();
+}
+
+class _RoomHeaderAvatarState extends State<_RoomHeaderAvatar> {
+  Room get room => widget.room;
+
+  Future<void> _editGroupAvatar() async {
+    if (await pickAndSetRoomAvatar(context, room) && mounted) {
+      setState(() {});
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
     final name = room.getLocalizedDisplayname();
     final mxc = room.avatar?.toString();
-    final radius = room.isDirectChat
-        ? BorderRadius.circular(18)
-        : BorderRadius.circular(10);
-    return ClipRRect(
+    final isGroup = !room.isDirectChat;
+    final radius =
+        isGroup ? BorderRadius.circular(10) : BorderRadius.circular(18);
+
+    Widget avatar = ClipRRect(
       borderRadius: radius,
       child: SizedBox(
         width: 36,
@@ -483,6 +498,31 @@ class _RoomHeaderAvatar extends StatelessWidget {
                       color: AppTheme.accentDeep),
                 ),
               ),
+      ),
+    );
+
+    if (!isGroup) return avatar;
+
+    // Groups: tap the avatar to change the room photo.
+    return GestureDetector(
+      onTap: _editGroupAvatar,
+      child: Stack(
+        children: [
+          avatar,
+          Positioned(
+            right: -1,
+            bottom: -1,
+            child: Container(
+              padding: const EdgeInsets.all(2),
+              decoration: BoxDecoration(
+                color: AppTheme.accent,
+                shape: BoxShape.circle,
+                border: Border.all(color: AppTheme.bg, width: 1.5),
+              ),
+              child: const Icon(Icons.camera_alt, size: 8, color: Colors.white),
+            ),
+          ),
+        ],
       ),
     );
   }
