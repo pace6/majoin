@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_webrtc/flutter_webrtc.dart';
 import 'package:matrix/matrix.dart';
@@ -17,20 +19,46 @@ class _CallScreenState extends State<CallScreen> {
   RTCVideoRenderer? _remote;
   bool _muted = false;
   bool _videoMuted = false;
-  bool _speakerOn = true;
+  late bool _speakerOn;
+
+  // Set when the call first connects; drives the on-screen call timer.
+  DateTime? _connectedAt;
+  Timer? _tick;
 
   CallSession get s => widget.session;
 
   @override
   void initState() {
     super.initState();
+    // Video calls default to loudspeaker, voice calls to the earpiece.
+    _speakerOn = s.type == CallType.kVideo;
     _initRenderers();
     s.onCallStreamsChanged.stream.listen((_) => _refreshStreams());
     s.onCallStateChanged.stream.listen((_) {
+      _onCallState();
       if (mounted) setState(() {});
     });
     s.onStreamAdd.stream.listen((_) => _refreshStreams());
     s.onStreamRemoved.stream.listen((_) => _refreshStreams());
+  }
+
+  void _onCallState() {
+    if (s.state == CallState.kConnected && _connectedAt == null) {
+      _connectedAt = DateTime.now();
+      Helper.setSpeakerphoneOn(_speakerOn);
+      _tick = Timer.periodic(const Duration(seconds: 1), (_) {
+        if (mounted) setState(() {});
+      });
+    }
+  }
+
+  String get _durationLabel {
+    final start = _connectedAt;
+    if (start == null) return '';
+    final d = DateTime.now().difference(start);
+    final mm = d.inMinutes.toString().padLeft(2, '0');
+    final ss = (d.inSeconds % 60).toString().padLeft(2, '0');
+    return '$mm:$ss';
   }
 
   Future<void> _initRenderers() async {
@@ -59,6 +87,7 @@ class _CallScreenState extends State<CallScreen> {
 
   @override
   void dispose() {
+    _tick?.cancel();
     _local?.dispose();
     _remote?.dispose();
     super.dispose();
@@ -200,7 +229,7 @@ class _CallScreenState extends State<CallScreen> {
       case CallState.kConnecting:
         return 'call.connecting'.tr;
       case CallState.kConnected:
-        return _isVideo ? 'call.videoCall'.tr : 'call.voiceCall'.tr;
+        return _durationLabel.isNotEmpty ? _durationLabel : 'call.connecting'.tr;
       case CallState.kEnded:
         return 'call.ended'.tr;
       default:
