@@ -187,7 +187,13 @@ class PushService {
   bool _isRoomOpen(String roomId) {
     final ctx = _navKey.currentContext;
     if (ctx == null) return false;
-    final location = GoRouterState.of(ctx).uri.toString();
+    // GoRouterState.of needs a context under a route builder; the nav key's
+    // context is the root Navigator, so read the location off the router.
+    final location = GoRouter.of(ctx)
+        .routerDelegate
+        .currentConfiguration
+        .uri
+        .toString();
     return location.contains(Uri.encodeComponent(roomId));
   }
 
