@@ -76,12 +76,16 @@ class _TimelineViewState extends State<TimelineView> {
   void _sendReadReceipt() {
     final tl = _timeline;
     if (tl == null) return;
+    // Only mark a real, server-acked event — a local echo still carries its
+    // transaction id (not a `$...` event id) and setReadMarker would 404.
     final newest = tl.events.cast<Event?>().firstWhere(
-          (e) => e != null && _visible(e),
+          (e) => e != null && _visible(e) && e.eventId.startsWith(r'$'),
           orElse: () => null,
         );
-    if (newest != null && newest.eventId.isNotEmpty) {
-      widget.room.setReadMarker(newest.eventId, mRead: newest.eventId);
+    if (newest != null) {
+      widget.room
+          .setReadMarker(newest.eventId, mRead: newest.eventId)
+          .catchError((_) {}); // best-effort; ignore transient failures
     }
   }
 
@@ -129,10 +133,19 @@ class _TimelineViewState extends State<TimelineView> {
         child: Column(
           children: [
             Expanded(
-              child: ListView.builder(
+              child: events.isEmpty
+                  ? Center(
+                      child: Text(
+                        'chat.empty'.tr,
+                        style: const TextStyle(color: AppTheme.subtleText),
+                      ),
+                    )
+                  : ListView.builder(
                 controller: _scrollCtl,
                 reverse: true,
                 padding: const EdgeInsets.symmetric(vertical: 8),
+                // Trailing history spinner only when there are events to page
+                // past — an empty room has nothing older to load.
                 itemCount: events.length + (tl.canRequestHistory ? 1 : 0),
                 itemBuilder: (context, i) {
                   // Trailing (oldest end) slot: history-loading spinner.

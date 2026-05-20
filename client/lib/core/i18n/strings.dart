@@ -91,6 +91,8 @@ const Map<String, Map<String, String>> _bundles = {
 
     // Friends directory
     'friends.search': 'ค้นหาเพื่อน',
+    'friends.connected': 'เพื่อน',
+    'friends.others': 'อื่นๆ',
     'friends.empty': 'ไม่พบผู้ใช้',
     'friends.loadError': 'โหลดรายชื่อไม่ได้',
     'friends.openError': 'เปิดแชทไม่ได้',
@@ -155,6 +157,7 @@ const Map<String, Map<String, String>> _bundles = {
 
     // Chat
     'chat.typing': 'กำลังพิมพ์…',
+    'chat.empty': 'ยังไม่มีข้อความ — เริ่มสนทนาได้เลย',
     'file.downloading': 'กำลังดาวน์โหลด…',
     'file.saved': 'บันทึกไฟล์แล้ว',
 
@@ -271,6 +274,8 @@ const Map<String, Map<String, String>> _bundles = {
     'common.language': 'Language',
 
     'friends.search': 'Search friends',
+    'friends.connected': 'Friends',
+    'friends.others': 'Others',
     'friends.empty': 'No users found',
     'friends.loadError': 'Could not load directory',
     'friends.openError': 'Could not open chat',
@@ -329,6 +334,7 @@ const Map<String, Map<String, String>> _bundles = {
     'msg.file': '[file]',
 
     'chat.typing': 'typing…',
+    'chat.empty': 'No messages yet — say hi',
     'file.downloading': 'Downloading…',
     'file.saved': 'File saved',
 

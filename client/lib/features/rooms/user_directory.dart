@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
@@ -44,11 +45,35 @@ class _UserDirectoryState extends State<UserDirectory> {
   String? _error;
   String _localQuery = '';
   String? _openingUserId;
+  StreamSubscription? _syncSub;
 
   @override
   void initState() {
     super.initState();
     _load();
+    // Rebuild on sync so a user moves to "connected" once a DM exists.
+    _syncSub = MatrixClientService.instance.client.onSync.stream
+        .listen((_) {
+      if (mounted) setState(() {});
+    });
+  }
+
+  @override
+  void dispose() {
+    _syncSub?.cancel();
+    super.dispose();
+  }
+
+  /// MXIDs the user already has a direct chat with.
+  Set<String> _connectedPeers() {
+    final peers = <String>{};
+    for (final r in MatrixClientService.instance.client.rooms) {
+      if (r.isDirectChat) {
+        final p = r.directChatMatrixID;
+        if (p != null) peers.add(p);
+      }
+    }
+    return peers;
   }
 
   Future<void> _load() async {
@@ -124,6 +149,23 @@ class _UserDirectoryState extends State<UserDirectory> {
                 localpartOf(u.userId).toLowerCase().contains(q))
             .toList();
 
+    // Split into friends you already chat with vs. everyone else.
+    final connectedPeers = _connectedPeers();
+    final connected =
+        filtered.where((u) => connectedPeers.contains(u.userId)).toList();
+    final others =
+        filtered.where((u) => !connectedPeers.contains(u.userId)).toList();
+
+    final rows = <Widget>[];
+    if (connected.isNotEmpty) {
+      rows.add(_SectionHeader('friends.connected'.tr, connected.length));
+      rows.addAll(connected.map(_tileFor));
+    }
+    if (others.isNotEmpty) {
+      rows.add(_SectionHeader('friends.others'.tr, others.length));
+      rows.addAll(others.map(_tileFor));
+    }
+
     return Column(
       children: [
         if (widget.query == null)
@@ -142,24 +184,43 @@ class _UserDirectoryState extends State<UserDirectory> {
             ),
           ),
         Expanded(
-          child: filtered.isEmpty
+          child: rows.isEmpty
               ? _Centered(
                   child: Text('friends.empty'.tr,
                       style: const TextStyle(color: AppTheme.subtleText)),
                 )
               : RefreshIndicator(
                   onRefresh: _load,
-                  child: ListView.builder(
-                    itemCount: filtered.length,
-                    itemBuilder: (_, i) => _UserTile(
-                      user: filtered[i],
-                      busy: _openingUserId == filtered[i].userId,
-                      onTap: () => _openChat(filtered[i]),
-                    ),
-                  ),
+                  child: ListView(children: rows),
                 ),
         ),
       ],
+    );
+  }
+
+  Widget _tileFor(DirectoryUser u) => _UserTile(
+        user: u,
+        busy: _openingUserId == u.userId,
+        onTap: () => _openChat(u),
+      );
+}
+
+class _SectionHeader extends StatelessWidget {
+  const _SectionHeader(this.title, this.count);
+  final String title;
+  final int count;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      color: const Color(0xFFF5F5F5),
+      padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
+      child: Text('$title  $count',
+          style: const TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
+              color: AppTheme.subtleText)),
     );
   }
 }
