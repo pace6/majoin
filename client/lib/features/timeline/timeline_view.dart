@@ -172,9 +172,12 @@ class _TimelineViewState extends State<TimelineView> {
                 controller: _scrollCtl,
                 reverse: true,
                 padding: const EdgeInsets.symmetric(vertical: 8),
-                // Trailing history spinner only when there are events to page
-                // past — an empty room has nothing older to load.
-                itemCount: events.length + (tl.canRequestHistory ? 1 : 0),
+                // Trailing spinner only while a history page is actually
+                // being fetched. `canRequestHistory` stays true until the
+                // room start is reached, so using it would leave the spinner
+                // stuck forever on chats too short to scroll.
+                itemCount:
+                    events.length + (tl.isRequestingHistory ? 1 : 0),
                 itemBuilder: (context, i) {
                   // Trailing (oldest end) slot: history-loading spinner.
                   if (i >= events.length) {
