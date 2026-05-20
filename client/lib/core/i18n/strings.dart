@@ -117,6 +117,7 @@ const Map<String, Map<String, String>> _bundles = {
     'rooms.decline': 'ปฏิเสธ',
     'rooms.newChat': 'แชทใหม่',
     'chats.filterAll': 'ทั้งหมด',
+    'chats.allChats': 'แชททั้งหมด',
 
     // New chat
     'newChat.title': 'แชทใหม่',
@@ -319,6 +320,7 @@ const Map<String, Map<String, String>> _bundles = {
     'rooms.decline': 'Decline',
     'rooms.newChat': 'New chat',
     'chats.filterAll': 'All',
+    'chats.allChats': 'All chats',
 
     'newChat.title': 'New chat',
     'newChat.direct': 'New direct chat',

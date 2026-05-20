@@ -60,12 +60,29 @@ class _RoomListState extends State<RoomList> {
         }
 
         return ListView.builder(
-          itemCount: rooms.length,
-          itemBuilder: (context, i) => _RoomTile(
-            room: rooms[i],
-            selected: rooms[i].id == widget.selectedRoomId,
-            onTap: () => widget.onRoomTap(rooms[i]),
-          ),
+          itemCount: rooms.length + 1,
+          itemBuilder: (context, i) {
+            if (i == 0) {
+              return Padding(
+                padding: const EdgeInsets.fromLTRB(18, 4, 18, 4),
+                child: Text(
+                  'chats.allChats'.tr.toUpperCase(),
+                  style: const TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w700,
+                    letterSpacing: 0.6,
+                    color: AppTheme.subtleText,
+                  ),
+                ),
+              );
+            }
+            final r = rooms[i - 1];
+            return _RoomTile(
+              room: r,
+              selected: r.id == widget.selectedRoomId,
+              onTap: () => widget.onRoomTap(r),
+            );
+          },
         );
       },
     );
@@ -107,7 +124,9 @@ class _RoomTileState extends State<_RoomTile> {
     final r = widget.room;
     final invited = r.membership == Membership.invite;
     final last = r.lastEvent;
-    final preview = invited
+    final isMine = last != null &&
+        last.senderId == MatrixClientService.instance.client.userID;
+    var preview = invited
         ? 'rooms.invitation'.tr
         : last == null
             ? ''
@@ -116,6 +135,7 @@ class _RoomTileState extends State<_RoomTile> {
                 : last.type == 'app.majoin.flex'
                     ? 'msg.flex'.tr
                     : last.body);
+    if (isMine && !invited && preview.isNotEmpty) preview = '✓ $preview';
 
     final ts = r.lastEvent?.originServerTs;
     final timeLabel = ts == null ? '' : _formatTime(ts);
@@ -123,7 +143,7 @@ class _RoomTileState extends State<_RoomTile> {
     return InkWell(
       onTap: invited ? _accept : widget.onTap,
       child: Container(
-        color: widget.selected ? const Color(0xFFF0F8F2) : Colors.white,
+        color: widget.selected ? AppTheme.accentSoft : AppTheme.bg,
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.center,
@@ -142,9 +162,9 @@ class _RoomTileState extends State<_RoomTile> {
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: const TextStyle(
-                      fontSize: 15,
+                      fontSize: 16,
                       fontWeight: FontWeight.w600,
-                      color: Color(0xFF1A1A1A),
+                      color: AppTheme.ink,
                     ),
                   ),
                   const SizedBox(height: 2),

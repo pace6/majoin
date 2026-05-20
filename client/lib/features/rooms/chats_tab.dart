@@ -55,42 +55,28 @@ class _ChatsTabState extends State<ChatsTab> {
               ],
             ),
           ),
-          // Search.
+          // Search — soft rounded pill.
           Padding(
-            padding: const EdgeInsets.fromLTRB(12, 4, 12, 8),
+            padding: const EdgeInsets.fromLTRB(16, 4, 16, 10),
             child: TextField(
               controller: _searchCtl,
               onChanged: (v) => setState(() => _query = v),
+              style: const TextStyle(fontSize: 15),
               decoration: InputDecoration(
                 hintText: 'common.search'.tr,
-                prefixIcon: const Icon(Icons.search, size: 20),
+                hintStyle: const TextStyle(color: AppTheme.subtleText),
+                prefixIcon:
+                    const Icon(Icons.search, size: 20, color: AppTheme.subtleText),
+                prefixIconConstraints:
+                    const BoxConstraints(minWidth: 38, minHeight: 38),
                 isDense: true,
+                contentPadding: const EdgeInsets.symmetric(vertical: 9),
                 filled: true,
-                fillColor: const Color(0xFFF0F0F0),
+                fillColor: const Color(0x0D000000),
                 border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(24),
+                  borderRadius: BorderRadius.circular(12),
                   borderSide: BorderSide.none,
                 ),
-              ),
-            ),
-          ),
-          // Filter chip row — only "All" for now.
-          Align(
-            alignment: Alignment.centerLeft,
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(12, 0, 12, 6),
-              child: Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
-                decoration: BoxDecoration(
-                  color: AppTheme.lineGreen.withValues(alpha: 0.15),
-                  borderRadius: BorderRadius.circular(16),
-                ),
-                child: Text('chats.filterAll'.tr,
-                    style: const TextStyle(
-                        fontSize: 13,
-                        fontWeight: FontWeight.w600,
-                        color: AppTheme.lineGreen)),
               ),
             ),
           ),
