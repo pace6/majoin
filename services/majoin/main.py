@@ -7,6 +7,7 @@ access token, so this service never proxies image bytes.
 Run:  uv run uvicorn main:app --host 127.0.0.1 --port 8410
 """
 import os
+from contextlib import asynccontextmanager
 from fastapi import FastAPI, HTTPException, Header
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
@@ -15,14 +16,26 @@ import db
 
 ADMIN_KEY = os.environ.get("STICKER_ADMIN_KEY", "change-me-admin-key")
 
-app = FastAPI(title="majoin sticker store", docs_url=None, redoc_url=None)
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # Schema is managed externally via Alembic CLI migrations.
+    yield
+
+
+app = FastAPI(
+    title="Majoin API backend",
+    description="Backend API for Majoin sticker store and user directory",
+    docs_url=None,
+    redoc_url=None,
+    lifespan=lifespan,
+)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
     allow_methods=["GET", "POST", "DELETE"],
     allow_headers=["*"],
 )
-db.init_db()
 
 
 def _pack_summary(p):
@@ -38,8 +51,8 @@ def _pack_summary(p):
 
 
 @app.get("/api/stickers/catalog")
-def catalog():
-    packs = [_pack_summary(p) for p in db.list_packs()]
+async def catalog():
+    packs = [_pack_summary(p) for p in await db.list_packs()]
     return {
         "packs": packs,
         "featured": [p for p in packs if p["featured"]],
@@ -48,8 +61,8 @@ def catalog():
 
 
 @app.get("/api/stickers/pack/{pack_id}")
-def pack(pack_id: str):
-    data = db.get_pack(pack_id)
+async def pack(pack_id: str):
+    data = await db.get_pack(pack_id)
     if not data:
         raise HTTPException(404, "pack not found")
     p = data["pack"]
@@ -94,13 +107,13 @@ def _require_admin(key: str | None):
 
 
 @app.post("/api/stickers/admin/pack")
-def register_pack(body: PackIn, x_admin_key: str | None = Header(default=None)):
+async def register_pack(body: PackIn, x_admin_key: str | None = Header(default=None)):
     _require_admin(x_admin_key)
-    db.upsert_pack(
+    await db.upsert_pack(
         body.id, body.name, body.category, body.featured, body.is_new,
         body.price, body.cover_mxc, body.sort_order,
     )
-    db.replace_stickers(
+    await db.replace_stickers(
         body.id,
         [s.model_dump() for s in body.stickers],
     )
@@ -108,12 +121,31 @@ def register_pack(body: PackIn, x_admin_key: str | None = Header(default=None)):
 
 
 @app.delete("/api/stickers/admin/pack/{pack_id}")
-def remove_pack(pack_id: str, x_admin_key: str | None = Header(default=None)):
+async def remove_pack(pack_id: str, x_admin_key: str | None = Header(default=None)):
     _require_admin(x_admin_key)
-    db.delete_pack(pack_id)
+    await db.delete_pack(pack_id)
     return {"ok": True}
 
 
+@app.get("/api/users")
+async def list_users():
+    users = await db.list_users()
+    formatted = []
+    for u in users:
+        user_id = u["user_id"]
+        displayname = u["displayname"]
+        if not displayname:
+            # Fallback to the localpart of the Matrix ID (e.g. @ball:localhost -> ball)
+            localpart = user_id.split(":")[0][1:]
+            displayname = localpart
+        formatted.append({
+            "userId": user_id,
+            "displayname": displayname,
+            "avatarUrl": u["avatar_url"] or ""
+        })
+    return {"users": formatted}
+
+
 @app.get("/api/stickers/health")
-def health():
+async def health():
     return {"ok": True}

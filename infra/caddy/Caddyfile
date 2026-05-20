@@ -15,8 +15,11 @@ chat.tokens2.io {
 	tls /etc/ssl/cloudflare/tokens2.io.pem /etc/ssl/cloudflare/tokens2.io.key
 	encode gzip
 
-	# Sticker store API (FastAPI on :8410) — must come before /_matrix/*
+	# Sticker store & User directory API (FastAPI on :8410) — must come before /_matrix/*
 	handle /api/stickers/* {
+		reverse_proxy 127.0.0.1:8410
+	}
+	handle /api/users/* {
 		reverse_proxy 127.0.0.1:8410
 	}
 

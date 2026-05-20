@@ -47,6 +47,78 @@ bridges and puppeting.
 - TURN: coturn (native)
 - Sticker store: `services/sticker-api` (FastAPI, systemd, port 8410)
 
+### Infrastructure Architecture
+
+![Infrastructure Diagram](docs/infrastructure_diagram.svg)
+
+<details>
+<summary>Show Mermaid Source</summary>
+
+```mermaid
+graph TB
+    %% Styling
+    classDef client fill:#3A86FF,stroke:#000,stroke-width:1.5px,color:#fff;
+    classDef proxy fill:#8338EC,stroke:#000,stroke-width:1.5px,color:#fff;
+    classDef matrix fill:#FF006E,stroke:#000,stroke-width:1.5px,color:#fff;
+    classDef services fill:#FFB703,stroke:#000,stroke-width:1.5px,color:#333;
+    classDef database fill:#06D6A0,stroke:#000,stroke-width:1.5px,color:#fff;
+    classDef external fill:#7D8597,stroke:#000,stroke-dasharray: 5 5,stroke-width:1.5px,color:#fff;
+
+    %% Nodes
+    subgraph Client ["Client Devices"]
+        App["majoin Client (Flutter)<br/>(Android, iOS, macOS, Windows, Linux)"]:::client
+    end
+
+    subgraph Internet ["Public Entrypoints (TLS Reverse Proxy)"]
+        Caddy["Caddy Proxy (chat.tokens2.io & livekit.tokens2.io)<br/>Terminates HTTPS / WSS"]:::proxy
+    end
+
+    subgraph AudioVideo ["Real-time Calling Infrastructure"]
+        Coturn["coturn TURN/STUN Server<br/>(Ports 3478/5349 & UDP 49152-49252)"]:::services
+        LiveKit["LiveKit SFU (Group Calls)<br/>(Ports 7880/7881 & UDP 50000-50200)"]:::services
+    end
+
+    subgraph ApplicationStack ["Application Backend Services"]
+        Synapse["Synapse Matrix Homeserver<br/>(Python/Twisted, Port 8008)"]:::matrix
+        StickerAPI["FastAPI Sticker Store API<br/>(uv / python, Port 8410)"]:::services
+        Sygnal["Sygnal Push Gateway<br/>(Python, Port 5000)"]:::services
+        LKJWT["lk-jwt-service (LiveKit JWT Service)<br/>(Go, Port 8080)"]:::services
+    end
+
+    subgraph DataStorage ["Data Stores"]
+        Postgres[(PostgreSQL Database<br/>Port 5432)]:::database
+    end
+
+    subgraph ExternalServices ["External APIs / Services"]
+        FCM["Firebase Cloud Messaging (FCM)<br/>Google Push Notifications"]:::external
+        APNS["Apple Push Notification Service (APNs)"]:::external
+    end
+
+    %% Flows
+    App ==>|"1. HTTPS / WSS (chat.tokens2.io)"| Caddy
+    App ==>|"2. WebRTC Media (1:1 direct / TURN relay)"| Coturn
+    App ==>|"3. WebRTC Media (Group Calls)"| LiveKit
+
+    Caddy ==>|"Proxy (/_matrix/* & .well-known/*)"| Synapse
+    Caddy ==>|"Proxy (/api/stickers/*)"| StickerAPI
+    Caddy ==>|"Proxy (livekit.tokens2.io/)"| LiveKit
+    Caddy ==>|"Proxy (livekit.tokens2.io/jwt)"| LKJWT
+
+    Synapse ==>|"DB Queries"| Postgres
+    Synapse ==>|"Trigger Push Events"| Sygnal
+    Synapse -.->|"TURN Authentication Secret"| Coturn
+
+    StickerAPI ==>|"Sticker Pack Metadata"| Postgres
+    StickerAPI -->|"Upload Media Assets (mxc://)"| Synapse
+
+    LKJWT ==>|"Exchange Matrix OpenID for User Verification"| Synapse
+    LKJWT -.->|"Issues signed JWT tokens for"| LiveKit
+
+    Sygnal ==>|Push Push Notifications| FCM
+    Sygnal ==>|Push Push Notifications| APNS
+```
+</details>
+
 ## Quick start (client dev)
 
 ```bash

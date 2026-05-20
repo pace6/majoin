@@ -1,7 +1,6 @@
-# majoin Sticker Store API
+# majoin API Backend
 
-FastAPI service. Serves the sticker catalog to the app; admin endpoint
-registers packs. Sticker images live in Synapse media (`mxc://`).
+FastAPI service serving both the sticker catalog and the registered user directory for the majoin app.
 
 ## Endpoints
 
@@ -11,6 +10,7 @@ registers packs. Sticker images live in Synapse media (`mxc://`).
 | GET | `/api/stickers/pack/{id}` | none | pack manifest with stickers |
 | POST | `/api/stickers/admin/pack` | `X-Admin-Key` | create/update a pack |
 | DELETE | `/api/stickers/admin/pack/{id}` | `X-Admin-Key` | remove a pack |
+| GET | `/api/users` | none | registered user directory |
 | GET | `/api/stickers/health` | none | health probe |
 
 ## Deploy (VPS, native — uv, no Docker)
@@ -26,26 +26,29 @@ sudo ln -sf "$HOME/.local/bin/uv" /usr/local/bin/uv
 Deploy the service:
 
 ```bash
-sudo mkdir -p /opt/majoin-stickers
-sudo cp main.py db.py upload_pack.py pyproject.toml /opt/majoin-stickers/
-cd /opt/majoin-stickers
-sudo chown -R www-data:www-data /opt/majoin-stickers
+sudo mkdir -p /opt/majoin
+sudo cp -r main.py db.py upload_pack.py pyproject.toml alembic alembic.ini /opt/majoin/
+sudo chown -R www-data:www-data /opt/majoin
+cd /opt/majoin
 
 # create .venv + install deps (run as the service user so it owns the venv)
 sudo -u www-data uv sync
 
+# Run database migrations
+sudo -u www-data DATABASE_URL="postgresql://synapse:CHANGE_ME_DB_PASSWORD@localhost:5432/synapse" uv run alembic upgrade head
+
 # systemd
-sudo cp majoin-stickers.service /etc/systemd/system/
-sudo nano /etc/systemd/system/majoin-stickers.service   # set STICKER_ADMIN_KEY
+sudo cp deploy/majoin.service /etc/systemd/system/
+sudo nano /etc/systemd/system/majoin.service   # set STICKER_ADMIN_KEY and DATABASE_URL
 sudo systemctl daemon-reload
-sudo systemctl enable --now majoin-stickers
-sudo systemctl status majoin-stickers
+sudo systemctl enable --now majoin
+sudo systemctl status majoin
 ```
 
 `uv sync` reads `pyproject.toml`, creates `.venv/`, installs pinned deps.
 `uv run` (in the unit file) auto-uses that `.venv`.
 
-Service listens on `127.0.0.1:8410`. Caddy proxies `/api/stickers/*` to it.
+Service listens on `127.0.0.1:8410`. Caddy proxies `/api/stickers/*` and `/api/users/*` to it.
 
 ### Caddy
 
@@ -55,9 +58,31 @@ Inside the `chat.tokens2.io { ... }` block, **before** `handle /_matrix/*`:
 handle /api/stickers/* {
     reverse_proxy 127.0.0.1:8410
 }
+handle /api/users/* {
+    reverse_proxy 127.0.0.1:8410
+}
 ```
 
 `sudo systemctl reload caddy`
+
+## Database Migrations (Alembic)
+
+Database schema changes are managed via Alembic.
+
+### Running Migrations Locally
+
+From `services/majoin` directory:
+
+```bash
+DATABASE_URL="postgresql://synapse:synapse@localhost:5432/synapse" uv run alembic upgrade head
+```
+
+### Creating a New Migration
+
+```bash
+uv run alembic revision -m "description of migration"
+```
+Then edit the newly generated file in `alembic/versions/`.
 
 ## Upload a pack
 
@@ -65,7 +90,7 @@ Needs a Matrix access token of any user (a dedicated `@stickerbot` is tidy).
 The token uploads images to Synapse media.
 
 ```bash
-cd /opt/majoin-stickers
+cd /opt/majoin
 export MATRIX_HS=https://chat.tokens2.io
 export MATRIX_TOKEN=<access token>
 export STICKER_API=http://127.0.0.1:8410
@@ -93,4 +118,4 @@ curl -XPOST https://chat.tokens2.io/_matrix/client/v3/login \
   upload it; it is never served by this API.
 - Installed-pack list is stored per user in Matrix `account_data`
   (`app.majoin.stickers`), so it syncs across devices with no DB here.
-- `stickers.db` (SQLite) is created next to `main.py` on first run.
+- Sticker pack and metadata are stored in PostgreSQL (configured via `DATABASE_URL`). Database schemas are managed using Alembic migrations, which must be executed using `alembic upgrade head` before starting the application.
