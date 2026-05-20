@@ -174,11 +174,29 @@ class _ComposerState extends State<Composer> {
     }
   }
 
+  // Cap picked images so large camera-roll photos upload fast.
+  static const _photoMaxEdge = 1920.0;
+
   Future<void> _pickAndSendPhoto(ImageSource source) async {
     final picker = ImagePicker();
-    final XFile? x;
+    // Gallery allows multi-select; camera captures one shot at a time.
+    final List<XFile> picked;
     try {
-      x = await picker.pickImage(source: source, imageQuality: 85);
+      if (source == ImageSource.gallery) {
+        picked = await picker.pickMultiImage(
+          imageQuality: 85,
+          maxWidth: _photoMaxEdge,
+          maxHeight: _photoMaxEdge,
+        );
+      } else {
+        final x = await picker.pickImage(
+          source: source,
+          imageQuality: 85,
+          maxWidth: _photoMaxEdge,
+          maxHeight: _photoMaxEdge,
+        );
+        picked = x == null ? const [] : [x];
+      }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -187,11 +205,14 @@ class _ComposerState extends State<Composer> {
       }
       return;
     }
-    if (x == null) return;
-    final bytes = await File(x.path).readAsBytes();
-    await widget.room.sendFileEvent(
-      MatrixImageFile(bytes: bytes, name: x.name),
-    );
+    if (picked.isEmpty) return;
+    // Upload all photos in parallel; timeline order may differ slightly.
+    await Future.wait(picked.map((x) async {
+      final bytes = await File(x.path).readAsBytes();
+      await widget.room.sendFileEvent(
+        MatrixImageFile(bytes: bytes, name: x.name),
+      );
+    }));
   }
 
   Future<void> _pickAndSendVideo(ImageSource source) async {
