@@ -1,4 +1,9 @@
-"""PostgreSQL storage for sticker packs. No ORM. Async."""
+"""PostgreSQL storage for sticker packs. No ORM. Async.
+
+Shares the Synapse database, so majoin-owned tables are prefixed
+`majoin_<module>_<table>` (module: sticker). The `users`/`profiles` tables
+read by list_users() belong to Synapse and are queried as-is.
+"""
 import os
 import psycopg
 from psycopg.rows import dict_row
@@ -25,7 +30,7 @@ async def upsert_pack(pack_id, name, category, featured, is_new, price,
                       cover_mxc, sort_order):
     async with conn() as c:
         await c.execute(
-            """INSERT INTO packs
+            """INSERT INTO majoin_sticker_packs
                (id, name, category, featured, is_new, price, cover_mxc, sort_order)
                VALUES (%s,%s,%s,%s,%s,%s,%s,%s)
                ON CONFLICT(id) DO UPDATE SET
@@ -41,10 +46,11 @@ async def upsert_pack(pack_id, name, category, featured, is_new, price,
 async def replace_stickers(pack_id, stickers):
     """stickers: list of dict(sticker_id, body, mxc, width, height)."""
     async with conn() as c:
-        await c.execute("DELETE FROM stickers WHERE pack_id = %s", (pack_id,))
+        await c.execute(
+            "DELETE FROM majoin_sticker_stickers WHERE pack_id = %s", (pack_id,))
         for i, s in enumerate(stickers):
             await c.execute(
-                """INSERT INTO stickers
+                """INSERT INTO majoin_sticker_stickers
                    (pack_id, sticker_id, body, mxc, width, height, sort_order)
                    VALUES (%s,%s,%s,%s,%s,%s,%s)""",
                 (pack_id, s["sticker_id"], s["body"], s["mxc"],
@@ -54,19 +60,22 @@ async def replace_stickers(pack_id, stickers):
 
 async def list_packs():
     async with conn() as c:
-        await c.execute("SELECT * FROM packs ORDER BY sort_order, created_at")
+        await c.execute(
+            "SELECT * FROM majoin_sticker_packs ORDER BY sort_order, created_at")
         rows = await c.fetchall()
         return [dict(r) for r in rows]
 
 
 async def get_pack(pack_id):
     async with conn() as c:
-        await c.execute("SELECT * FROM packs WHERE id = %s", (pack_id,))
+        await c.execute(
+            "SELECT * FROM majoin_sticker_packs WHERE id = %s", (pack_id,))
         p = await c.fetchone()
         if not p:
             return None
         await c.execute(
-            "SELECT * FROM stickers WHERE pack_id = %s ORDER BY sort_order",
+            "SELECT * FROM majoin_sticker_stickers WHERE pack_id = %s "
+            "ORDER BY sort_order",
             (pack_id,),
         )
         stickers = await c.fetchall()
@@ -75,7 +84,8 @@ async def get_pack(pack_id):
 
 async def delete_pack(pack_id):
     async with conn() as c:
-        await c.execute("DELETE FROM packs WHERE id = %s", (pack_id,))
+        await c.execute(
+            "DELETE FROM majoin_sticker_packs WHERE id = %s", (pack_id,))
 
 
 async def list_users():

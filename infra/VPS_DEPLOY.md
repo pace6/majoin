@@ -304,26 +304,31 @@ sudo systemctl enable --now majoin-livekit majoin-lk-jwt
 
 ## 7. majoin API
 
+Deploys are automated by `.github/workflows/deploy-majoin-api.yml` — a push to
+`main` rsyncs `services/majoin/` to the VPS and runs `deploy/deploy.sh`. Only
+the one-time bootstrap below is manual. Secrets live in `/opt/majoin/.env`
+(systemd `EnvironmentFile=`), never in the unit file or GitHub.
+
 ```bash
-curl -LsSf https://astral.sh/uv/install.sh | sudo sh   # installs uv
+# uv — must be on a system path; the systemd unit calls /usr/local/bin/uv
+curl -LsSf https://astral.sh/uv/install.sh | sudo sh
+sudo ln -sf "$(which uv)" /usr/local/bin/uv
+
+# dir + env file
 sudo mkdir -p /opt/majoin
-sudo cp -r services/majoin/{main.py,db.py,upload_pack.py,pyproject.toml,alembic,alembic.ini} \
-  /opt/majoin/
-sudo chown -R www-data:www-data /opt/majoin
-cd /opt/majoin
+sudo cp services/majoin/deploy/.env.example /opt/majoin/.env
+sudo nano /opt/majoin/.env          # set DATABASE_URL + STICKER_ADMIN_KEY
+sudo chmod 600 /opt/majoin/.env
 
-# create .venv + install deps (run as the service user so it owns the venv)
-sudo -u www-data uv sync
-
-# Run database migrations
-sudo -u www-data DATABASE_URL="postgresql://synapse:CHANGE_ME_DB_PASSWORD@127.0.0.1:5432/synapse" uv run alembic upgrade head
-
-sudo cp services/majoin/deploy/majoin.service \
-  /etc/systemd/system/
-sudo nano /etc/systemd/system/majoin.service    # set STICKER_ADMIN_KEY and DATABASE_URL
+# systemd unit
+sudo cp services/majoin/deploy/majoin.service /etc/systemd/system/
 sudo systemctl daemon-reload
-sudo systemctl enable --now majoin
+sudo systemctl enable majoin
 ```
+
+Add these GitHub repo secrets: `VPS_SSH_KEY`, `VPS_HOST`, `VPS_USER` (root),
+`DEPLOY_DIR` (`/opt/majoin`). Then push to `main` — CI runs the first deploy
+(rsync code → `uv sync` → `alembic upgrade head` → start → health check).
 
 See `services/majoin/README.md` for pack uploads.
 
@@ -384,11 +389,11 @@ Replace every `CHANGE_ME_*` placeholder, and keep them consistent across files:
 
 | Secret | Used in |
 |--------|---------|
-| DB password | Postgres role + `homeserver.yaml` + `majoin.service` (`DATABASE_URL`) |
+| DB password | Postgres role + `homeserver.yaml` + `/opt/majoin/.env` (`DATABASE_URL`) |
 | `registration_shared_secret` | `homeserver.yaml` |
 | TURN secret | `homeserver.yaml` `turn_shared_secret` + `turnserver.conf` |
 | LiveKit API key/secret | `livekit.yaml` + `majoin-lk-jwt.service` |
-| `STICKER_ADMIN_KEY` | `majoin.service` |
+| `STICKER_ADMIN_KEY` | `/opt/majoin/.env` |
 | FCM service account / APNs cert | `sygnal.yaml` (see `docs/push-setup.md`) |
 
 Never commit real secrets. The repo ships placeholders only.

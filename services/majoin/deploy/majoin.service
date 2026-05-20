@@ -6,8 +6,9 @@ After=network.target
 Type=simple
 User=www-data
 WorkingDirectory=/opt/majoin
-Environment=STICKER_ADMIN_KEY=CHANGE_ME_ADMIN_KEY
-Environment=DATABASE_URL=postgresql://synapse:CHANGE_ME_DB_PASSWORD@127.0.0.1:5432/synapse
+# Secrets live in /opt/majoin/.env (not committed) — STICKER_ADMIN_KEY,
+# DATABASE_URL. See deploy/.env.example for the format.
+EnvironmentFile=/opt/majoin/.env
 # uv resolves the venv from .venv/ created by `uv sync`.
 ExecStart=/usr/local/bin/uv run uvicorn main:app --host 127.0.0.1 --port 8410
 Restart=on-failure

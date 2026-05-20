@@ -1,7 +1,8 @@
 # Sygnal push gateway config. Dev placeholder — replace api_key + APNs cert.
 # Docs: https://github.com/matrix-org/sygnal
 http:
-  bind_addresses: ['0.0.0.0']
+  # Local only — reached by Synapse on the same host, not exposed publicly.
+  bind_addresses: ['127.0.0.1']
   port: 5000
 
 log:
@@ -30,15 +31,17 @@ metrics:
     enabled: false
 
 apps:
-  # Android — replace api_key with your FCM v1 service account JSON path or legacy key.
+  # Android — FCM v1. Legacy `api_key` was shut down by Google in 2024.
   app.majoin.android:
     type: gcm
-    api_key: "REPLACE_WITH_FCM_KEY"
+    api_version: v1
+    project_id: REPLACE_WITH_FIREBASE_PROJECT_ID
+    service_account_file: /opt/sygnal/keys/fcm-service-account.json
 
-  # iOS — drop cert.p12 in ./keys/ and adjust.
-  app.majoin.ios:
-    type: apns
-    certfile: /sygnal/keys/apns.p12
-    # Use APNs sandbox for dev builds:
-    platform: sandbox
-    topic: app.majoin
+  # iOS — APNs .p12 cert at the path below. Uncomment once the cert exists.
+  # app.majoin.ios:
+  #   type: apns
+  #   certfile: /opt/sygnal/keys/apns.p12
+  #   # sandbox = development-signed builds; production for App Store/TestFlight.
+  #   platform: sandbox
+  #   topic: app.majoin

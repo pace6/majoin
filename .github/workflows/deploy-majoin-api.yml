@@ -1,0 +1,47 @@
+name: Deploy majoin API
+
+# Monorepo: only the services/majoin slice is deployed. The VPS holds a
+# flattened copy at $DEPLOY_DIR (not a git checkout), so the workflow rsyncs
+# the slice over SSH, then runs deploy/deploy.sh on the box.
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'services/majoin/**'
+      - '.github/workflows/deploy-majoin-api.yml'
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-majoin-api
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up SSH
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.VPS_SSH_KEY }}" > ~/.ssh/id_ed25519
+          chmod 600 ~/.ssh/id_ed25519
+          ssh-keyscan -H "${{ secrets.VPS_HOST }}" >> ~/.ssh/known_hosts
+
+      - name: Rsync service to VPS
+        run: |
+          rsync -az --delete \
+            --exclude '.venv' \
+            --exclude '__pycache__' \
+            --exclude '*.pyc' \
+            --exclude '.env' \
+            -e "ssh -i ~/.ssh/id_ed25519" \
+            services/majoin/ \
+            "${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }}:${{ secrets.DEPLOY_DIR }}/"
+
+      - name: Run deploy script
+        run: |
+          ssh -i ~/.ssh/id_ed25519 \
+            "${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }}" \
+            "DEPLOY_SHA='${{ github.sha }}' bash '${{ secrets.DEPLOY_DIR }}/deploy/deploy.sh'"

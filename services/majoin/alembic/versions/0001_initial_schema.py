@@ -16,10 +16,14 @@ branch_labels = None
 depends_on = None
 
 
+# majoin shares the Synapse Postgres database, so every table this service
+# owns is prefixed `majoin_<module>_<table>` to avoid colliding with Synapse's
+# schema. Module here is `sticker`.
+
 def upgrade() -> None:
-    # Create 'packs' table
+    # Create 'majoin_sticker_packs' table
     op.create_table(
-        'packs',
+        'majoin_sticker_packs',
         sa.Column('id', sa.Text(), nullable=False),
         sa.Column('name', sa.Text(), nullable=False),
         sa.Column('category', sa.Text(), nullable=False, server_default='general'),
@@ -32,9 +36,9 @@ def upgrade() -> None:
         sa.PrimaryKeyConstraint('id')
     )
 
-    # Create 'stickers' table
+    # Create 'majoin_sticker_stickers' table
     op.create_table(
-        'stickers',
+        'majoin_sticker_stickers',
         sa.Column('pack_id', sa.Text(), nullable=False),
         sa.Column('sticker_id', sa.Text(), nullable=False),
         sa.Column('body', sa.Text(), nullable=False),
@@ -43,10 +47,10 @@ def upgrade() -> None:
         sa.Column('height', sa.Integer(), nullable=False, server_default='256'),
         sa.Column('sort_order', sa.Integer(), nullable=False, server_default='0'),
         sa.PrimaryKeyConstraint('pack_id', 'sticker_id'),
-        sa.ForeignKeyConstraint(['pack_id'], ['packs.id'], ondelete='CASCADE')
+        sa.ForeignKeyConstraint(['pack_id'], ['majoin_sticker_packs.id'], ondelete='CASCADE')
     )
 
 
 def downgrade() -> None:
-    op.drop_table('stickers')
-    op.drop_table('packs')
+    op.drop_table('majoin_sticker_stickers')
+    op.drop_table('majoin_sticker_packs')

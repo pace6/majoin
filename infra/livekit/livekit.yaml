@@ -1,9 +1,9 @@
 # LiveKit SFU config for majoin group calls.
 # Docs: https://docs.livekit.io/home/self-hosting/deployment/
 #
-# Generate API key/secret:  docker run --rm livekit/livekit-server generate-keys
-# Then replace the placeholder under `keys:` and mirror it into the
-# lk-jwt-service env vars in docker-compose.yml.
+# Generate API key/secret:  livekit-server generate-keys
+# The key/secret under `keys:` must match LIVEKIT_KEY / LIVEKIT_SECRET in
+# the majoin-lk-jwt.service systemd unit.
 
 port: 7880
 
@@ -16,7 +16,7 @@ rtc:
 
 # Single API key pair. Key on the left, secret on the right.
 keys:
-  REPLACE_WITH_LIVEKIT_API_KEY: REPLACE_WITH_LIVEKIT_API_SECRET
+  CHANGE_ME_LIVEKIT_API_KEY: CHANGE_ME_LIVEKIT_API_SECRET
 
 logging:
   level: info

@@ -15,35 +15,44 @@ FastAPI service serving both the sticker catalog and the registered user directo
 
 ## Deploy (VPS, native — uv, no Docker)
 
-Install [uv](https://docs.astral.sh/uv/) once:
+Routine deploys are automated: pushing to `main` with changes under
+`services/majoin/**` triggers `.github/workflows/deploy-majoin-api.yml`, which
+rsyncs this slice to the VPS and runs `deploy/deploy.sh` (uv sync → alembic
+upgrade → restart → health check).
+
+### GitHub repo secrets
+
+| Secret | Value |
+|--------|-------|
+| `VPS_SSH_KEY` | private SSH key (ed25519) |
+| `VPS_HOST` | VPS IP/hostname |
+| `VPS_USER` | SSH user — `root` |
+| `DEPLOY_DIR` | target dir on the VPS, e.g. `/opt/majoin` |
+
+### One-time VPS bootstrap
+
+Secrets live in `$DEPLOY_DIR/.env` (read by systemd `EnvironmentFile=` and by
+`deploy.sh`) — never in the unit file or GitHub. See `deploy/.env.example`.
 
 ```bash
-curl -LsSf https://astral.sh/uv/install.sh | sh
-# uv lands in ~/.local/bin — symlink to a system path for systemd:
-sudo ln -sf "$HOME/.local/bin/uv" /usr/local/bin/uv
-```
+# uv — must be on a system path; the systemd unit calls /usr/local/bin/uv
+curl -LsSf https://astral.sh/uv/install.sh | sudo sh
+sudo ln -sf "$(which uv)" /usr/local/bin/uv
 
-Deploy the service:
-
-```bash
+# dir + env
 sudo mkdir -p /opt/majoin
-sudo cp -r main.py db.py upload_pack.py pyproject.toml alembic alembic.ini /opt/majoin/
-sudo chown -R www-data:www-data /opt/majoin
-cd /opt/majoin
+sudo cp deploy/.env.example /opt/majoin/.env
+sudo nano /opt/majoin/.env          # set DATABASE_URL + STICKER_ADMIN_KEY
+sudo chmod 600 /opt/majoin/.env
 
-# create .venv + install deps (run as the service user so it owns the venv)
-sudo -u www-data uv sync
-
-# Run database migrations
-sudo -u www-data DATABASE_URL="postgresql://synapse:CHANGE_ME_DB_PASSWORD@localhost:5432/synapse" uv run alembic upgrade head
-
-# systemd
+# systemd unit (edit paths if DEPLOY_DIR is not /opt/majoin)
 sudo cp deploy/majoin.service /etc/systemd/system/
-sudo nano /etc/systemd/system/majoin.service   # set STICKER_ADMIN_KEY and DATABASE_URL
 sudo systemctl daemon-reload
-sudo systemctl enable --now majoin
-sudo systemctl status majoin
+sudo systemctl enable majoin
 ```
+
+Then push to `main` (or run the workflow manually) — CI handles the first and
+every subsequent deploy.
 
 `uv sync` reads `pyproject.toml`, creates `.venv/`, installs pinned deps.
 `uv run` (in the unit file) auto-uses that `.venv`.
@@ -68,6 +77,20 @@ handle /api/users/* {
 ## Database Migrations (Alembic)
 
 Database schema changes are managed via Alembic.
+
+### Table naming
+
+This service shares the **Synapse** Postgres database. Every table majoin owns
+is prefixed `majoin_<module>_<table>` (plural table name) so it never collides
+with Synapse's schema — currently:
+
+| Table | Holds |
+|-------|-------|
+| `majoin_sticker_packs` | sticker pack metadata |
+| `majoin_sticker_stickers` | individual stickers per pack |
+
+Synapse's own `users` / `profiles` tables are read as-is by `/api/users` — they
+are not majoin tables and are not prefixed.
 
 ### Running Migrations Locally
 
