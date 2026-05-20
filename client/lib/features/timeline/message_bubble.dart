@@ -432,8 +432,8 @@ class _Bubble extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final bg = mine ? AppTheme.myBubble : AppTheme.theirBubble;
-    final radius = const Radius.circular(16);
-    final smallRadius = const Radius.circular(4);
+    final radius = const Radius.circular(20);
+    final smallRadius = const Radius.circular(6);
     final shape = mine
         ? BorderRadius.only(
             topLeft: radius,
