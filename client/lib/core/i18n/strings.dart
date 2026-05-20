@@ -265,6 +265,11 @@ const Map<String, Map<String, String>> _bundles = {
     'call.missed': 'สายที่ไม่ได้รับ',
     'call.accept': 'รับ',
     'call.decline': 'ปฏิเสธ',
+    'call.mic': 'ไมค์',
+    'call.camera': 'กล้อง',
+    'call.flip': 'สลับกล้อง',
+    'call.speaker': 'ลำโพง',
+    'call.hangUp': 'วางสาย',
     'call.notDm': 'ใช้ได้เฉพาะแชทตัวต่อตัว',
 
     // Misc
@@ -467,6 +472,11 @@ const Map<String, Map<String, String>> _bundles = {
     'call.missed': 'Missed call',
     'call.accept': 'Accept',
     'call.decline': 'Decline',
+    'call.mic': 'Mic',
+    'call.camera': 'Camera',
+    'call.flip': 'Flip',
+    'call.speaker': 'Speaker',
+    'call.hangUp': 'Hang up',
     'call.notDm': 'Calls only available in direct chats',
   },
 };

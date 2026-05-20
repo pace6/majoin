@@ -4,6 +4,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_webrtc/flutter_webrtc.dart';
 import 'package:matrix/matrix.dart';
 import '../../core/i18n/strings.dart';
+import '../../ui/theme/app_theme.dart';
+import '../../ui/widgets/mxc_image.dart';
 
 /// Full-screen call UI for a single [CallSession] — handles both directions.
 class CallScreen extends StatefulWidget {
@@ -138,10 +140,11 @@ class _CallScreenState extends State<CallScreen> {
         if (didPop) await s.hangup(reason: CallErrorCode.userHangup);
       },
       child: Scaffold(
-        backgroundColor: const Color(0xFF111111),
+        backgroundColor: Colors.black,
         body: Stack(
           children: [
-            // Remote feed full-screen.
+            // Background — remote feed for a connected video call, else a
+            // warm accent-to-dark gradient.
             if (_isVideo && _remote != null && _isConnected)
               Positioned.fill(
                 child: RTCVideoView(
@@ -151,25 +154,35 @@ class _CallScreenState extends State<CallScreen> {
               )
             else
               const Positioned.fill(
-                child: ColoredBox(color: Color(0xFF111111)),
+                child: DecoratedBox(
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      begin: Alignment.topCenter,
+                      end: Alignment.bottomCenter,
+                      colors: [AppTheme.accentDeep, Color(0xFF0A0A0C)],
+                    ),
+                  ),
+                ),
               ),
 
-            // Peer name + status header.
-            Positioned(
-              top: 0, left: 0, right: 0,
-              child: SafeArea(
-                child: Padding(
-                  padding: const EdgeInsets.all(20),
+            // Caller block — big avatar, name, status (voice, or while
+            // connecting).
+            if (!_isVideo || !_isConnected)
+              Positioned.fill(
+                child: SafeArea(
                   child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
                     children: [
+                      _callerAvatar(140),
+                      const SizedBox(height: 18),
                       Text(
                         s.room.getLocalizedDisplayname(),
                         style: const TextStyle(
                             color: Colors.white,
-                            fontSize: 22,
-                            fontWeight: FontWeight.w600),
+                            fontSize: 28,
+                            fontWeight: FontWeight.w700),
                       ),
-                      const SizedBox(height: 4),
+                      const SizedBox(height: 6),
                       Text(
                         _statusLabel(),
                         style: const TextStyle(
@@ -178,17 +191,41 @@ class _CallScreenState extends State<CallScreen> {
                     ],
                   ),
                 ),
+              )
+            else
+              // Connected video — small name/status header.
+              Positioned(
+                top: 0, left: 0, right: 0,
+                child: SafeArea(
+                  child: Padding(
+                    padding: const EdgeInsets.all(20),
+                    child: Column(
+                      children: [
+                        Text(
+                          s.room.getLocalizedDisplayname(),
+                          style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 20,
+                              fontWeight: FontWeight.w600),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(_statusLabel(),
+                            style: const TextStyle(
+                                color: Colors.white70, fontSize: 13)),
+                      ],
+                    ),
+                  ),
+                ),
               ),
-            ),
 
             // Local self-view (picture-in-picture).
             if (_isVideo && _local != null && _isConnected)
               Positioned(
-                top: 80, right: 12,
+                top: 80, right: 16,
                 child: SizedBox(
-                  width: 110, height: 150,
+                  width: 100, height: 134,
                   child: ClipRRect(
-                    borderRadius: BorderRadius.circular(12),
+                    borderRadius: BorderRadius.circular(16),
                     child: RTCVideoView(
                       _local!,
                       mirror: true,
@@ -204,10 +241,8 @@ class _CallScreenState extends State<CallScreen> {
               left: 0, right: 0, bottom: 0,
               child: SafeArea(
                 child: Padding(
-                  padding: const EdgeInsets.fromLTRB(16, 16, 16, 32),
-                  child: _isIncoming
-                      ? _incomingBar()
-                      : _activeBar(),
+                  padding: const EdgeInsets.fromLTRB(24, 16, 24, 32),
+                  child: _isIncoming ? _incomingBar() : _activeBar(),
                 ),
               ),
             ),
@@ -258,37 +293,135 @@ class _CallScreenState extends State<CallScreen> {
   }
 
   Widget _activeBar() {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+    return Column(
+      mainAxisSize: MainAxisSize.min,
       children: [
-        _CircleBtn(
-          icon: _muted ? Icons.mic_off : Icons.mic,
-          color: _muted ? Colors.white24 : Colors.white12,
-          onTap: _toggleMute,
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+          children: [
+            _CallBtn(
+              icon: _muted ? Icons.mic_off : Icons.mic,
+              label: 'call.mic'.tr,
+              on: _muted,
+              onTap: _toggleMute,
+            ),
+            if (_isVideo)
+              _CallBtn(
+                icon: _videoMuted ? Icons.videocam_off : Icons.videocam,
+                label: 'call.camera'.tr,
+                on: _videoMuted,
+                onTap: _toggleVideo,
+              ),
+            if (_isVideo)
+              _CallBtn(
+                icon: Icons.cameraswitch_outlined,
+                label: 'call.flip'.tr,
+                on: false,
+                onTap: _switchCamera,
+              ),
+            if (!_isVideo)
+              _CallBtn(
+                icon: _speakerOn ? Icons.volume_up : Icons.volume_down,
+                label: 'call.speaker'.tr,
+                on: _speakerOn,
+                onTap: _toggleSpeaker,
+              ),
+          ],
         ),
-        if (_isVideo)
-          _CircleBtn(
-            icon: _videoMuted ? Icons.videocam_off : Icons.videocam,
-            color: _videoMuted ? Colors.white24 : Colors.white12,
-            onTap: _toggleVideo,
+        const SizedBox(height: 22),
+        SizedBox(
+          width: double.infinity,
+          height: 56,
+          child: FilledButton.icon(
+            style: FilledButton.styleFrom(
+              backgroundColor: const Color(0xFFFF3B30),
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(30)),
+            ),
+            onPressed: _hangup,
+            icon: const Icon(Icons.call_end),
+            label: Text('call.hangUp'.tr,
+                style: const TextStyle(
+                    fontSize: 16, fontWeight: FontWeight.w700)),
           ),
-        if (_isVideo)
-          _CircleBtn(
-            icon: Icons.cameraswitch_outlined,
-            color: Colors.white12,
-            onTap: _switchCamera,
-          ),
-        if (!_isVideo)
-          _CircleBtn(
-            icon: _speakerOn ? Icons.volume_up : Icons.volume_down,
-            color: Colors.white12,
-            onTap: _toggleSpeaker,
-          ),
-        _CircleBtn(
-          icon: Icons.call_end,
-          color: Colors.red,
-          onTap: _hangup,
         ),
+      ],
+    );
+  }
+
+  Widget _callerAvatar(double size) {
+    final mxc = s.room.avatar?.toString();
+    final name = s.room.getLocalizedDisplayname();
+    return Container(
+      padding: const EdgeInsets.all(4),
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        border: Border.all(
+            color: _isConnected
+                ? Colors.transparent
+                : AppTheme.accent.withValues(alpha: 0.6),
+            width: 3),
+      ),
+      child: ClipOval(
+        child: SizedBox(
+          width: size,
+          height: size,
+          child: mxc != null && mxc.isNotEmpty
+              ? MxcImage(url: mxc, width: size, height: size)
+              : Container(
+                  color: AppTheme.accentDeep,
+                  alignment: Alignment.center,
+                  child: Text(
+                    name.isEmpty ? '?' : name.characters.first.toUpperCase(),
+                    style: TextStyle(
+                        fontSize: size * 0.36,
+                        fontWeight: FontWeight.w700,
+                        color: Colors.white),
+                  ),
+                ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Frosted 60px call-control button with a label.
+class _CallBtn extends StatelessWidget {
+  const _CallBtn({
+    required this.icon,
+    required this.label,
+    required this.on,
+    required this.onTap,
+  });
+  final IconData icon;
+  final String label;
+  final bool on;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        InkResponse(
+          onTap: onTap,
+          radius: 34,
+          child: Container(
+            width: 60,
+            height: 60,
+            decoration: BoxDecoration(
+              color: on ? Colors.white : Colors.white24,
+              shape: BoxShape.circle,
+            ),
+            child: Icon(icon,
+                size: 24, color: on ? const Color(0xFF0A0A0C) : Colors.white),
+          ),
+        ),
+        const SizedBox(height: 7),
+        Text(label,
+            style: const TextStyle(
+                color: Colors.white70, fontSize: 11, fontWeight: FontWeight.w500)),
       ],
     );
   }
