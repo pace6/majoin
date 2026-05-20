@@ -12,6 +12,7 @@ import 'core/encryption/key_service.dart';
 import 'core/i18n/strings.dart';
 import 'core/push/push_service.dart';
 import 'features/call/call_service.dart';
+import 'features/rooms/add_friends_screen.dart';
 import 'features/security/key_backup_gate.dart';
 import 'features/security/verification_sheet.dart';
 import 'ui/pages/login_page.dart';
@@ -69,6 +70,10 @@ class _MajoinAppState extends State<MajoinApp> {
         GoRoute(
           path: '/security',
           builder: (_, __) => const SecurityPage(),
+        ),
+        GoRoute(
+          path: '/add-friends',
+          builder: (_, __) => const AddFriendsScreen(),
         ),
         GoRoute(
           path: '/rooms',

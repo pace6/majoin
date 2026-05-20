@@ -101,6 +101,7 @@ const Map<String, Map<String, String>> _bundles = {
 
     // Friends directory
     'friends.search': 'ค้นหาเพื่อน',
+    'addFriends.title': 'เพิ่มเพื่อน',
     'friends.connected': 'เพื่อน',
     'friends.others': 'อื่นๆ',
     'friends.empty': 'ไม่พบผู้ใช้',
@@ -312,6 +313,7 @@ const Map<String, Map<String, String>> _bundles = {
     'common.language': 'Language',
 
     'friends.search': 'Search friends',
+    'addFriends.title': 'Add friends',
     'friends.connected': 'Friends',
     'friends.others': 'Others',
     'friends.empty': 'No users found',

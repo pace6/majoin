@@ -7,7 +7,6 @@ import '../../core/i18n/strings.dart';
 import '../../core/util/mxid.dart';
 import '../../ui/theme/app_theme.dart';
 import '../../ui/widgets/mxc_image.dart';
-import '../rooms/new_chat_dialog.dart';
 import '../stickers/sticker_store.dart';
 
 /// Pebble-style Home: greeting strip, friends row, quick actions, groups card.
@@ -126,7 +125,7 @@ class _HomeTabState extends State<HomeTab> {
                     icon: Icons.person_add_alt_1,
                     label: 'home.addFriend'.tr.replaceAll('\n', ' '),
                     tint: AppTheme.accent,
-                    onTap: _newChat,
+                    onTap: _addFriends,
                   ),
                   const SizedBox(width: 10),
                   _quickAction(
@@ -182,17 +181,11 @@ class _HomeTabState extends State<HomeTab> {
                 color: AppTheme.ink)),
       );
 
-  Future<void> _newChat() async {
-    final router = GoRouter.of(context);
-    final id = await showNewChatDialog(context);
-    if (id != null && mounted) {
-      router.push('/rooms/${Uri.encodeComponent(id)}');
-    }
-  }
+  void _addFriends() => context.push('/add-friends');
 
   Widget _addFriendCircle() {
     return GestureDetector(
-      onTap: _newChat,
+      onTap: _addFriends,
       child: SizedBox(
         width: 64,
         child: Column(

@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:matrix/matrix.dart';
 
@@ -9,7 +10,6 @@ import '../../core/i18n/strings.dart';
 import '../../core/util/mxid.dart';
 import '../../ui/theme/app_theme.dart';
 import '../../ui/widgets/mxc_image.dart';
-import '../rooms/new_chat_dialog.dart';
 
 /// Pebble-style profile: accent hero banner, avatar, stats, action cards.
 class ProfileScreen extends StatefulWidget {
@@ -187,7 +187,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       icon: Icons.person_add_alt_1,
                       label: 'home.addFriend'.tr.replaceAll('\n', ' '),
                       tag: 'profile.invite'.tr,
-                      onTap: () => showNewChatDialog(context),
+                      onTap: () => context.push('/add-friends'),
                     ),
                   ),
                 ],
