@@ -4,9 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:matrix/matrix.dart';
-import '../stickers/send_sticker.dart';
-import '../stickers/sticker_picker.dart';
-import '../../core/client/matrix_client.dart';
+import '../stickers/pebble_stickers.dart';
 import '../../core/i18n/strings.dart';
 import '../../ui/theme/app_theme.dart';
 import 'timeline_state.dart';
@@ -37,8 +35,6 @@ class _ComposerState extends State<Composer> {
   static const _typingRefresh = Duration(seconds: 8);
   bool _typingSent = false;
   Timer? _typingTimer;
-
-  late final _sticker = StickerSender(MatrixClientService.instance.client);
 
   @override
   void initState() {
@@ -132,6 +128,24 @@ class _ComposerState extends State<Composer> {
         await _pickAndSendVideo(ImageSource.gallery);
       case 'audio':
         if (mounted) setState(() => _recording = true);
+    }
+  }
+
+  /// Rasterize a Pebble sticker to a PNG and send it as an image.
+  Future<void> _sendPebbleSticker(PebbleStickerSpec spec) async {
+    setState(() => _tray = _Tray.none);
+    try {
+      final png = await renderPebbleStickerPng(spec);
+      await widget.room.sendFileEvent(
+        MatrixImageFile(
+            bytes: png, name: 'sticker.png', mimeType: 'image/png'),
+      );
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('${'pickerError'.tr}: $e')),
+        );
+      }
     }
   }
 
@@ -234,9 +248,7 @@ class _ComposerState extends State<Composer> {
             if (_tray == _Tray.attach)
               _AttachTray(onPick: _onAttachPick)
             else if (_tray == _Tray.sticker)
-              StickerPickerPanel(
-                onPick: (s) => _sticker.send(widget.room, s),
-              ),
+              PebbleStickerPanel(onPick: _sendPebbleSticker),
             Padding(
               padding: const EdgeInsets.fromLTRB(10, 6, 10, 6),
               child: Row(
