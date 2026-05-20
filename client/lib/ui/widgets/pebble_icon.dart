@@ -52,10 +52,19 @@ class PebbleIcon extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return SvgPicture.string(
-      _svg(icon, color, filled),
+    // The SVG paths fill the full 24×24 box, whereas Material icons carry
+    // built-in padding — so draw the glyph at ~86% and centre it to match
+    // Material's optical size at the same `size`.
+    return SizedBox(
       width: size,
       height: size,
+      child: Center(
+        child: SvgPicture.string(
+          _svg(icon, color, filled),
+          width: size * 0.86,
+          height: size * 0.86,
+        ),
+      ),
     );
   }
 }
