@@ -42,8 +42,19 @@ class MessageBubble extends StatelessWidget {
     final time = DateFormat.Hm().format(event.originServerTs);
     final timeWidget = Padding(
       padding: const EdgeInsets.symmetric(horizontal: 4),
-      child: Text(time,
-          style: const TextStyle(fontSize: 10, color: Color(0xCCFFFFFF))),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(time,
+              style: const TextStyle(
+                  fontSize: 10, color: AppTheme.subtleText)),
+          if (_mine) ...[
+            const SizedBox(width: 3),
+            const Text('✓✓',
+                style: TextStyle(fontSize: 10, color: AppTheme.accent)),
+          ],
+        ],
+      ),
     );
 
     final isVideo = display.messageType == MessageTypes.Video;
@@ -81,7 +92,9 @@ class MessageBubble extends StatelessWidget {
                   child: Text(
                     event.senderFromMemoryOrFallback.calcDisplayname(),
                     style: const TextStyle(
-                        fontSize: 11, color: Color(0xE6FFFFFF)),
+                        fontSize: 11,
+                        fontWeight: FontWeight.w600,
+                        color: AppTheme.subtleText),
                   ),
                 ),
               ConstrainedBox(
@@ -103,12 +116,26 @@ class MessageBubble extends StatelessWidget {
   }
 
   Widget _avatar() {
-    final name = event.senderFromMemoryOrFallback.calcDisplayname();
+    final sender = event.senderFromMemoryOrFallback;
+    final name = sender.calcDisplayname();
     final letter = name.isEmpty ? '?' : name.characters.first.toUpperCase();
-    return CircleAvatar(
-      radius: 16,
-      backgroundColor: const Color(0xFFE0E0E0),
-      child: Text(letter, style: const TextStyle(fontSize: 12)),
+    final mxc = sender.avatarUrl?.toString();
+    return ClipOval(
+      child: SizedBox(
+        width: 32,
+        height: 32,
+        child: mxc != null && mxc.isNotEmpty
+            ? MxcImage(url: mxc, width: 32, height: 32)
+            : Container(
+                color: AppTheme.accentSoft,
+                alignment: Alignment.center,
+                child: Text(letter,
+                    style: const TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600,
+                        color: AppTheme.accentDeep)),
+              ),
+      ),
     );
   }
 

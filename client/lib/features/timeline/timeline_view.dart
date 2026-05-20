@@ -162,22 +162,6 @@ class _TimelineViewState extends State<TimelineView> {
     }
     final events = tl.events.where(_visible).toList();
     final isGroup = !widget.room.isDirectChat;
-    final myId = MatrixClientService.instance.client.userID;
-
-    // Max read timestamp among peers (exclude self).
-    var maxPeerReadTs = 0;
-    widget.room.receiptState.global.otherUsers.forEach((uid, data) {
-      if (uid != myId && data.ts > maxPeerReadTs) maxPeerReadTs = data.ts;
-    });
-    // Newest own message that a peer has read → show "Read" under it.
-    String? readMarkerEventId;
-    for (final e in events) {
-      if (e.senderId == myId &&
-          e.originServerTs.millisecondsSinceEpoch <= maxPeerReadTs) {
-        readMarkerEventId = e.eventId;
-        break; // events is newest-first
-      }
-    }
 
     return ChangeNotifierProvider.value(
       value: _ui,
@@ -231,8 +215,6 @@ class _TimelineViewState extends State<TimelineView> {
                   final showDateSep = older == null ||
                       !_sameDay(older.originServerTs, e.originServerTs);
 
-                  final showRead = e.eventId == readMarkerEventId;
-
                   return Column(
                     children: [
                       MessageBubble(
@@ -243,20 +225,6 @@ class _TimelineViewState extends State<TimelineView> {
                         onLongPress: () =>
                             showMessageActions(context, e, _ui),
                       ),
-                      if (showRead)
-                        Padding(
-                          padding:
-                              const EdgeInsets.only(right: 16, bottom: 2),
-                          child: Align(
-                            alignment: Alignment.centerRight,
-                            child: Text(
-                              'msg.read'.tr,
-                              style: const TextStyle(
-                                  fontSize: 10,
-                                  color: Color(0xE6FFFFFF)),
-                            ),
-                          ),
-                        ),
                       if (showDateSep)
                         _DateSeparator(date: e.originServerTs),
                     ],
