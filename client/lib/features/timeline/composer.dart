@@ -253,7 +253,7 @@ class _ComposerState extends State<Composer> {
             Padding(
               padding: const EdgeInsets.fromLTRB(10, 6, 10, 6),
               child: Row(
-                crossAxisAlignment: CrossAxisAlignment.end,
+                crossAxisAlignment: CrossAxisAlignment.center,
                 children: [
                   // Attach — toggles the inline attach tray.
                   _CircleButton(
@@ -279,7 +279,7 @@ class _ComposerState extends State<Composer> {
                         border: Border.all(color: AppTheme.dividerColor),
                       ),
                       child: Row(
-                        crossAxisAlignment: CrossAxisAlignment.end,
+                        crossAxisAlignment: CrossAxisAlignment.center,
                         children: [
                           Expanded(
                             child: Focus(
