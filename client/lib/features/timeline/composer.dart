@@ -1,12 +1,9 @@
 import 'dart:async';
 import 'dart:io';
-import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:matrix/matrix.dart';
-import '../flex/demo_payloads.dart';
-import '../flex/send_flex.dart';
 import '../stickers/send_sticker.dart';
 import '../stickers/sticker_picker.dart';
 import '../../core/client/matrix_client.dart';
@@ -14,6 +11,9 @@ import '../../core/i18n/strings.dart';
 import '../../ui/theme/app_theme.dart';
 import 'timeline_state.dart';
 import 'voice_recorder.dart';
+
+/// Which inline tray is open above the composer input.
+enum _Tray { none, attach, sticker }
 
 class Composer extends StatefulWidget {
   const Composer({super.key, required this.room, required this.ui});
@@ -26,8 +26,10 @@ class Composer extends StatefulWidget {
 
 class _ComposerState extends State<Composer> {
   final _ctl = TextEditingController();
+  final _focus = FocusNode();
   bool _canSend = false;
   bool _recording = false;
+  _Tray _tray = _Tray.none;
 
   // Typing notification: refreshed every [_typingRefresh] while text present,
   // each refresh extends the server-side timeout so peers keep seeing it.
@@ -47,6 +49,12 @@ class _ComposerState extends State<Composer> {
       _updateTyping(v);
     });
     widget.ui.addListener(_onUiChange);
+    // Typing in the field dismisses any open tray.
+    _focus.addListener(() {
+      if (_focus.hasFocus && _tray != _Tray.none) {
+        setState(() => _tray = _Tray.none);
+      }
+    });
   }
 
   // Tracks which event the composer is currently editing, so entering edit
@@ -90,6 +98,8 @@ class _ComposerState extends State<Composer> {
     _typingTimer?.cancel();
     if (_typingSent) widget.room.setTyping(false);
     widget.ui.removeListener(_onUiChange);
+    _focus.dispose();
+    _ctl.dispose();
     super.dispose();
   }
 
@@ -110,67 +120,18 @@ class _ComposerState extends State<Composer> {
     await widget.room.sendTextEvent(text, inReplyTo: reply);
   }
 
-  Future<void> _showAttachSheet() async {
-    final choice = await showModalBottomSheet<String>(
-      context: context,
-      showDragHandle: true,
-      builder: (_) => Wrap(
-        children: [
-          ListTile(
-            leading: const Icon(Icons.photo_library_outlined),
-            title: Text('composer.photoGallery'.tr),
-            onTap: () => Navigator.pop(context, 'gallery'),
-          ),
-          ListTile(
-            leading: const Icon(Icons.photo_camera_outlined),
-            title: Text('composer.takePhoto'.tr),
-            onTap: () => Navigator.pop(context, 'camera'),
-          ),
-          ListTile(
-            leading: const Icon(Icons.video_library_outlined),
-            title: Text('composer.videoGallery'.tr),
-            onTap: () => Navigator.pop(context, 'videoGallery'),
-          ),
-          ListTile(
-            leading: const Icon(Icons.videocam_outlined),
-            title: Text('composer.recordVideo'.tr),
-            onTap: () => Navigator.pop(context, 'videoCamera'),
-          ),
-          ListTile(
-            leading: const Icon(Icons.insert_drive_file_outlined),
-            title: Text('composer.file'.tr),
-            onTap: () => Navigator.pop(context, 'file'),
-          ),
-          ListTile(
-            leading: const Icon(Icons.emoji_emotions_outlined),
-            title: Text('composer.sticker'.tr),
-            onTap: () => Navigator.pop(context, 'sticker'),
-          ),
-          ListTile(
-            leading: const Icon(Icons.dashboard_customize_outlined),
-            title: Text('composer.flexDemo'.tr),
-            onTap: () => Navigator.pop(context, 'flex'),
-          ),
-        ],
-      ),
-    );
-    if (!mounted || choice == null) return;
-    switch (choice) {
-      case 'gallery':
-        await _pickAndSendPhoto(ImageSource.gallery);
+  /// Handle a tap on an attach-tray tile.
+  Future<void> _onAttachPick(String kind) async {
+    setState(() => _tray = _Tray.none);
+    switch (kind) {
       case 'camera':
         await _pickAndSendPhoto(ImageSource.camera);
-      case 'videoGallery':
+      case 'photo':
+        await _pickAndSendPhoto(ImageSource.gallery);
+      case 'video':
         await _pickAndSendVideo(ImageSource.gallery);
-      case 'videoCamera':
-        await _pickAndSendVideo(ImageSource.camera);
-      case 'file':
-        await _pickAndSendFile();
-      case 'sticker':
-        final s = await StickerPickerSheet.show(context);
-        if (s != null) await _sticker.send(widget.room, s);
-      case 'flex':
-        await _pickAndSendFlex();
+      case 'audio':
+        if (mounted) setState(() => _recording = true);
     }
   }
 
@@ -238,47 +199,6 @@ class _ComposerState extends State<Composer> {
     );
   }
 
-  Future<void> _pickAndSendFile() async {
-    final FilePickerResult? res;
-    try {
-      res = await FilePicker.platform.pickFiles(withData: true);
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('${'pickerError'.tr}: $e')),
-        );
-      }
-      return;
-    }
-    if (res == null || res.files.isEmpty) return;
-    final f = res.files.single;
-    // withData loads bytes in memory; fall back to reading the path on desktop.
-    final bytes = f.bytes ?? (f.path != null ? await File(f.path!).readAsBytes() : null);
-    if (bytes == null) return;
-    await widget.room.sendFileEvent(MatrixFile(bytes: bytes, name: f.name));
-  }
-
-  Future<void> _pickAndSendFlex() async {
-    final entries = FlexDemos.all.entries.toList();
-    final pick = await showModalBottomSheet<int>(
-      context: context,
-      showDragHandle: true,
-      builder: (_) => Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          for (var i = 0; i < entries.length; i++)
-            ListTile(
-              leading: const Icon(Icons.style_outlined),
-              title: Text(entries[i].key),
-              onTap: () => Navigator.pop(context, i),
-            ),
-        ],
-      ),
-    );
-    if (pick == null) return;
-    await sendFlex(widget.room, entries[pick].value);
-  }
-
   @override
   Widget build(BuildContext context) {
     final reply = widget.ui.replyTo;
@@ -310,17 +230,29 @@ class _ComposerState extends State<Composer> {
                 event: reply,
                 onClear: () => widget.ui.clearReply(),
               ),
+            // Inline trays slide in above the input row.
+            if (_tray == _Tray.attach)
+              _AttachTray(onPick: _onAttachPick)
+            else if (_tray == _Tray.sticker)
+              StickerPickerPanel(
+                onPick: (s) => _sticker.send(widget.room, s),
+              ),
             Padding(
               padding: const EdgeInsets.fromLTRB(10, 6, 10, 6),
               child: Row(
                 crossAxisAlignment: CrossAxisAlignment.end,
                 children: [
-                  // Attach — opens the camera/photo/file/flex sheet.
+                  // Attach — toggles the inline attach tray.
                   _CircleButton(
-                    icon: Icons.add,
-                    bg: const Color(0x0D000000),
-                    fg: AppTheme.subtleText,
-                    onTap: _showAttachSheet,
+                    icon: _tray == _Tray.attach ? Icons.close : Icons.add,
+                    bg: _tray == _Tray.attach
+                        ? AppTheme.accent
+                        : const Color(0x0D000000),
+                    fg: _tray == _Tray.attach
+                        ? Colors.white
+                        : AppTheme.subtleText,
+                    onTap: () => setState(() => _tray =
+                        _tray == _Tray.attach ? _Tray.none : _Tray.attach),
                     tooltip: 'composer.attach'.tr,
                   ),
                   const SizedBox(width: 8),
@@ -351,6 +283,7 @@ class _ComposerState extends State<Composer> {
                               },
                               child: TextField(
                                 controller: _ctl,
+                                focusNode: _focus,
                                 minLines: 1,
                                 maxLines: 5,
                                 textInputAction: TextInputAction.newline,
@@ -368,15 +301,15 @@ class _ComposerState extends State<Composer> {
                             ),
                           ),
                           IconButton(
-                            icon: const Icon(Icons.emoji_emotions_outlined,
-                                size: 22, color: AppTheme.subtleText),
-                            onPressed: () async {
-                              final s =
-                                  await StickerPickerSheet.show(context);
-                              if (s != null) {
-                                await _sticker.send(widget.room, s);
-                              }
-                            },
+                            icon: Icon(Icons.emoji_emotions_outlined,
+                                size: 22,
+                                color: _tray == _Tray.sticker
+                                    ? AppTheme.accent
+                                    : AppTheme.subtleText),
+                            onPressed: () => setState(() => _tray =
+                                _tray == _Tray.sticker
+                                    ? _Tray.none
+                                    : _Tray.sticker),
                           ),
                         ],
                       ),
@@ -483,6 +416,68 @@ class _ReplyPreview extends StatelessWidget {
             icon: const Icon(Icons.close, size: 18),
             onPressed: onClear,
           ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Inline attach tray — camera / photo / video / audio tiles.
+class _AttachTray extends StatelessWidget {
+  const _AttachTray({required this.onPick});
+  final void Function(String kind) onPick;
+
+  static const _items = [
+    ('camera', Icons.photo_camera, Color(0xFF22B07D), 'attach.camera'),
+    ('photo', Icons.photo, Color(0xFF3A6FF0), 'attach.photo'),
+    ('video', Icons.movie, Color(0xFFE86A5C), 'attach.video'),
+    ('audio', Icons.mic, Color(0xFFFF9F40), 'attach.audio'),
+  ];
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.fromLTRB(16, 10, 16, 14),
+      decoration: const BoxDecoration(
+        color: Color(0x06000000),
+        border: Border(
+            top: BorderSide(color: AppTheme.dividerColor, width: 0.5)),
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceAround,
+        children: [
+          for (final (kind, icon, tint, label) in _items)
+            InkWell(
+              onTap: () => onPick(kind),
+              borderRadius: BorderRadius.circular(16),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Container(
+                    width: 54,
+                    height: 54,
+                    decoration: BoxDecoration(
+                      color: tint,
+                      borderRadius: BorderRadius.circular(16),
+                      boxShadow: const [
+                        BoxShadow(
+                            color: Color(0x14000000),
+                            blurRadius: 10,
+                            offset: Offset(0, 4)),
+                      ],
+                    ),
+                    child: Icon(icon, size: 22, color: Colors.white),
+                  ),
+                  const SizedBox(height: 6),
+                  Text(label.tr,
+                      style: const TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w500,
+                          color: AppTheme.ink)),
+                ],
+              ),
+            ),
         ],
       ),
     );

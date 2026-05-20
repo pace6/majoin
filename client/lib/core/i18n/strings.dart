@@ -152,6 +152,10 @@ const Map<String, Map<String, String>> _bundles = {
     'composer.recordVideo': 'อัดวิดีโอ',
     'composer.file': 'ไฟล์',
     'composer.attach': 'แนบไฟล์',
+    'attach.camera': 'กล้อง',
+    'attach.photo': 'รูปภาพ',
+    'attach.video': 'วิดีโอ',
+    'attach.audio': 'เสียง',
     'composer.replyingTo': 'ตอบกลับ',
     'composer.editing': 'กำลังแก้ไขข้อความ',
 
@@ -368,6 +372,10 @@ const Map<String, Map<String, String>> _bundles = {
     'composer.recordVideo': 'Record video',
     'composer.file': 'File',
     'composer.attach': 'Attach',
+    'attach.camera': 'Camera',
+    'attach.photo': 'Photo',
+    'attach.video': 'Video',
+    'attach.audio': 'Audio',
     'composer.replyingTo': 'Replying to',
     'composer.editing': 'Editing message',
 

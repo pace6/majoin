@@ -1,9 +1,138 @@
 import 'package:flutter/material.dart';
 import '../../core/i18n/strings.dart';
+import '../../ui/theme/app_theme.dart';
 import 'sticker_pack.dart';
 import 'sticker_repo.dart';
 import 'sticker_store.dart';
 import 'sticker_thumb.dart';
+
+/// Inline sticker tray for the composer — grid + pack-tab strip, fixed
+/// height. Calls [onPick] when a sticker is tapped (no modal).
+class StickerPickerPanel extends StatefulWidget {
+  const StickerPickerPanel({super.key, required this.onPick});
+  final void Function(StickerImage) onPick;
+
+  @override
+  State<StickerPickerPanel> createState() => _StickerPickerPanelState();
+}
+
+class _StickerPickerPanelState extends State<StickerPickerPanel> {
+  List<StickerPack>? _packs;
+  String? _error;
+  int _active = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  Future<void> _load() async {
+    try {
+      final packs = await StickerRepo.instance.installedPacks();
+      if (mounted) setState(() => _packs = packs);
+    } catch (e) {
+      if (mounted) setState(() => _error = '${'picker.loadFailed'.tr}: $e');
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      height: 268,
+      decoration: const BoxDecoration(
+        color: Color(0x06000000),
+        border: Border(
+            top: BorderSide(color: AppTheme.dividerColor, width: 0.5)),
+      ),
+      child: _body(),
+    );
+  }
+
+  Widget _body() {
+    if (_error != null) {
+      return Center(
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Text(_error!,
+              textAlign: TextAlign.center,
+              style: const TextStyle(color: Colors.red)),
+        ),
+      );
+    }
+    final packs = _packs;
+    if (packs == null) {
+      return const Center(child: CircularProgressIndicator());
+    }
+    if (packs.isEmpty) {
+      return Center(child: Text('picker.empty'.tr));
+    }
+    final active = packs[_active.clamp(0, packs.length - 1)];
+    return Column(
+      children: [
+        Expanded(
+          child: GridView.builder(
+            padding: const EdgeInsets.all(12),
+            itemCount: active.images.length,
+            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+              crossAxisCount: 4,
+              crossAxisSpacing: 6,
+              mainAxisSpacing: 6,
+            ),
+            itemBuilder: (context, i) {
+              final s = active.images[i];
+              return InkWell(
+                onTap: () => widget.onPick(s),
+                borderRadius: BorderRadius.circular(12),
+                child: Padding(
+                  padding: const EdgeInsets.all(4),
+                  child: StickerThumb(sticker: s),
+                ),
+              );
+            },
+          ),
+        ),
+        const Divider(height: 0.5, thickness: 0.5),
+        SizedBox(
+          height: 52,
+          child: Row(
+            children: [
+              Expanded(
+                child: ListView(
+                  scrollDirection: Axis.horizontal,
+                  padding: const EdgeInsets.symmetric(horizontal: 8),
+                  children: [
+                    for (var i = 0; i < packs.length; i++)
+                      _PackTab(
+                        pack: packs[i],
+                        selected: i == _active,
+                        onTap: () => setState(() => _active = i),
+                      ),
+                  ],
+                ),
+              ),
+              InkWell(
+                onTap: () async {
+                  await Navigator.of(context).push(
+                    MaterialPageRoute(
+                        builder: (_) => const StickerStorePage()),
+                  );
+                  _load();
+                },
+                child: Container(
+                  width: 48,
+                  alignment: Alignment.center,
+                  child: const Icon(Icons.add_circle_outline,
+                      color: AppTheme.subtleText),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+}
 
 class StickerPickerSheet extends StatefulWidget {
   const StickerPickerSheet({super.key});
@@ -160,8 +289,8 @@ class _PackTab extends StatelessWidget {
       child: Container(
         width: 52,
         decoration: BoxDecoration(
-          color: selected ? const Color(0xFFEAFBEF) : null,
-          borderRadius: BorderRadius.circular(8),
+          color: selected ? AppTheme.accentSoft : null,
+          borderRadius: BorderRadius.circular(10),
         ),
         alignment: Alignment.center,
         child: Padding(
