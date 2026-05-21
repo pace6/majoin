@@ -8,6 +8,7 @@ import '../../core/util/room_ext.dart';
 import '../../ui/theme/app_theme.dart';
 import '../../ui/widgets/pebble_icon.dart';
 import '../../ui/widgets/mxc_image.dart';
+import 'call_service.dart';
 
 /// Full-screen call UI for a single [CallSession] — handles both directions.
 class CallScreen extends StatefulWidget {
@@ -36,6 +37,12 @@ class _CallScreenState extends State<CallScreen> {
     super.initState();
     // Video calls default to loudspeaker, voice calls to the earpiece.
     _speakerOn = s.type == CallType.kVideo;
+    // Outgoing calls get a ringback tone — the VoIP layer only drives the
+    // incoming ringtone, so it is started here and stopped on connect/end.
+    if (s.direction == CallDirection.kOutgoing &&
+        s.state != CallState.kConnected) {
+      CallService.instance.playRingback();
+    }
     _initRenderers();
     s.onCallStreamsChanged.stream.listen((_) => _refreshStreams());
     s.onCallStateChanged.stream.listen((_) {
@@ -47,6 +54,9 @@ class _CallScreenState extends State<CallScreen> {
   }
 
   void _onCallState() {
+    if (s.state == CallState.kConnected || s.state == CallState.kEnded) {
+      CallService.instance.stopRingback();
+    }
     if (s.state == CallState.kConnected && _connectedAt == null) {
       _connectedAt = DateTime.now();
       Helper.setSpeakerphoneOn(_speakerOn);
@@ -92,6 +102,7 @@ class _CallScreenState extends State<CallScreen> {
   @override
   void dispose() {
     _tick?.cancel();
+    CallService.instance.stopRingback();
     _local?.dispose();
     _remote?.dispose();
     super.dispose();

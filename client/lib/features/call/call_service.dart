@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:flutter_webrtc/flutter_webrtc.dart' as rtc;
+import 'package:just_audio/just_audio.dart';
 import 'package:matrix/matrix.dart';
 import 'package:webrtc_interface/webrtc_interface.dart';
 import '../../core/client/matrix_client.dart';
@@ -23,7 +24,11 @@ class CallService implements WebRTCDelegate {
 
   final FlutterLocalNotificationsPlugin _notif =
       FlutterLocalNotificationsPlugin();
-  Timer? _ringTimer;
+
+  // Looping ringtone for incoming calls; ringback for outgoing calls.
+  final AudioPlayer _ringtonePlayer = AudioPlayer();
+  final AudioPlayer _ringbackPlayer = AudioPlayer();
+  Timer? _hapticTimer;
 
   static Future<void> init(GlobalKey<NavigatorState> navKey) async {
     if (_instance != null) return;
@@ -59,23 +64,51 @@ class CallService implements WebRTCDelegate {
 
   @override
   Future<void> playRingtone() async {
-    // No bundled audio asset — pulse the system alert sound + haptics on a
-    // repeating timer for the duration of ringing.
-    _ringTimer?.cancel();
-    void pulse() {
-      SystemSound.play(SystemSoundType.alert);
-      HapticFeedback.heavyImpact();
+    // Incoming-call ringtone: looped audio asset + a periodic haptic pulse.
+    try {
+      await _ringtonePlayer.setAsset('assets/sounds/ringtone.wav');
+      await _ringtonePlayer.setLoopMode(LoopMode.one);
+      // Not awaited — play() completes only when looped playback stops.
+      unawaited(_ringtonePlayer.play());
+    } catch (e) {
+      debugPrint('CallService: ringtone play failed: $e');
     }
-
-    pulse();
-    _ringTimer =
-        Timer.periodic(const Duration(seconds: 2), (_) => pulse());
+    _hapticTimer?.cancel();
+    HapticFeedback.heavyImpact();
+    _hapticTimer = Timer.periodic(
+        const Duration(seconds: 3), (_) => HapticFeedback.heavyImpact());
   }
 
   @override
   Future<void> stopRingtone() async {
-    _ringTimer?.cancel();
-    _ringTimer = null;
+    _hapticTimer?.cancel();
+    _hapticTimer = null;
+    try {
+      await _ringtonePlayer.stop();
+    } catch (e) {
+      debugPrint('CallService: ringtone stop failed: $e');
+    }
+  }
+
+  /// Outgoing-call ringback. The matrix VoIP layer only drives [playRingtone]
+  /// for incoming calls, so [CallScreen] calls this directly while an outgoing
+  /// call is still ringing.
+  Future<void> playRingback() async {
+    try {
+      await _ringbackPlayer.setAsset('assets/sounds/ringback.wav');
+      await _ringbackPlayer.setLoopMode(LoopMode.one);
+      unawaited(_ringbackPlayer.play());
+    } catch (e) {
+      debugPrint('CallService: ringback play failed: $e');
+    }
+  }
+
+  Future<void> stopRingback() async {
+    try {
+      await _ringbackPlayer.stop();
+    } catch (e) {
+      debugPrint('CallService: ringback stop failed: $e');
+    }
   }
 
   @override
@@ -96,6 +129,7 @@ class CallService implements WebRTCDelegate {
   @override
   Future<void> handleCallEnded(CallSession session) async {
     await stopRingtone();
+    await stopRingback();
     final navState = _navKey.currentState;
     if (navState == null) return;
     if (navState.canPop()) navState.pop();

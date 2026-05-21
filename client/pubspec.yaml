@@ -77,3 +77,5 @@ flutter:
     # majoin_v1 is bundled as the offline default pack.
     # animals/food packs ship via the sticker API (uploaded to Synapse).
     - assets/stickers/majoin_v1/
+    # Call ringtones — synthesized WAV loops (incoming + outgoing ringback).
+    - assets/sounds/
