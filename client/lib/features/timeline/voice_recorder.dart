@@ -4,7 +4,9 @@ import 'package:flutter/material.dart';
 import 'package:matrix/matrix.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:record/record.dart';
+import '../../core/i18n/strings.dart';
 import '../../ui/theme/app_theme.dart';
+import '../../ui/widgets/pebble_icon.dart';
 
 /// Hold-to-record voice message control. Shown inline in the composer while
 /// recording; sends an `m.audio` event on release.
@@ -107,31 +109,43 @@ class _VoiceRecorderBarState extends State<VoiceRecorderBar> {
   @override
   Widget build(BuildContext context) {
     return Container(
-      color: Colors.white,
+      decoration: const BoxDecoration(
+        color: AppTheme.bg,
+        border:
+            Border(top: BorderSide(color: AppTheme.dividerColor, width: 0.5)),
+      ),
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
       child: Row(
         children: [
           IconButton(
-            icon: const Icon(Icons.delete_outline, color: Colors.red),
+            icon: const Icon(Icons.delete_outline, color: Color(0xFFFF3B30)),
             onPressed: _cancel,
           ),
-          const Icon(Icons.mic, color: Colors.red, size: 20),
+          Container(
+            width: 9,
+            height: 9,
+            decoration: const BoxDecoration(
+                color: Color(0xFFFF3B30), shape: BoxShape.circle),
+          ),
           const SizedBox(width: 8),
           Text(_label,
               style: const TextStyle(
                   fontSize: 15, fontWeight: FontWeight.w600)),
-          const Spacer(),
-          const Text('กำลังอัด...',
-              style: TextStyle(color: AppTheme.subtleText)),
           const SizedBox(width: 8),
-          FilledButton(
-            style: FilledButton.styleFrom(
-              backgroundColor: AppTheme.lineGreen,
-              shape: const CircleBorder(),
-              padding: const EdgeInsets.all(12),
+          Text('camera.recording'.tr,
+              style: const TextStyle(color: AppTheme.subtleText)),
+          const Spacer(),
+          InkWell(
+            onTap: _stopAndSend,
+            borderRadius: BorderRadius.circular(20),
+            child: Container(
+              width: 40,
+              height: 40,
+              alignment: Alignment.center,
+              decoration: const BoxDecoration(
+                  color: AppTheme.accent, shape: BoxShape.circle),
+              child: const PebbleIcon(PIcon.send, size: 20, color: Colors.white),
             ),
-            onPressed: _stopAndSend,
-            child: const Icon(Icons.send_rounded, size: 20),
           ),
         ],
       ),
