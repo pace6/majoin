@@ -238,10 +238,69 @@ class _ComposerState extends State<Composer> {
     );
   }
 
+  /// Plain icon button for the expanded voice-mode composer row.
+  Widget _iconBtn(PIcon icon, VoidCallback onTap) => IconButton(
+        icon: PebbleIcon(icon, size: 24, color: AppTheme.subtleText),
+        onPressed: onTap,
+      );
+
   @override
   Widget build(BuildContext context) {
     final reply = widget.ui.replyTo;
     final editTarget = widget.ui.editTarget;
+    final inVoice = _tray == _Tray.voice;
+
+    // The text input pill — shared by the normal and voice-panel rows.
+    final inputPill = Container(
+      constraints: const BoxConstraints(minHeight: 40),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: AppTheme.dividerColor),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          Expanded(
+            child: Focus(
+              onKeyEvent: (node, event) {
+                if (event is KeyDownEvent &&
+                    event.logicalKey == LogicalKeyboardKey.enter &&
+                    !HardwareKeyboard.instance.isShiftPressed) {
+                  if (_canSend) _sendText();
+                  return KeyEventResult.handled;
+                }
+                return KeyEventResult.ignored;
+              },
+              child: TextField(
+                controller: _ctl,
+                focusNode: _focus,
+                minLines: 1,
+                maxLines: 5,
+                textInputAction: TextInputAction.newline,
+                style: const TextStyle(fontSize: 15),
+                decoration: InputDecoration(
+                  hintText: 'composer.hint'.tr,
+                  hintStyle: const TextStyle(color: AppTheme.subtleText),
+                  isDense: true,
+                  border: InputBorder.none,
+                  contentPadding: const EdgeInsets.fromLTRB(14, 10, 4, 10),
+                ),
+              ),
+            ),
+          ),
+          IconButton(
+            icon: PebbleIcon(PIcon.smile,
+                size: 22,
+                color: _tray == _Tray.sticker
+                    ? AppTheme.accent
+                    : AppTheme.subtleText),
+            onPressed: () => setState(() =>
+                _tray = _tray == _Tray.sticker ? _Tray.none : _Tray.sticker),
+          ),
+        ],
+      ),
+    );
     return SafeArea(
       top: false,
       child: Container(
@@ -274,101 +333,60 @@ class _ComposerState extends State<Composer> {
               padding: const EdgeInsets.fromLTRB(10, 6, 10, 6),
               child: Row(
                 crossAxisAlignment: CrossAxisAlignment.center,
-                children: [
-                  // Attach — toggles the inline attach tray.
-                  _CircleButton(
-                    icon: _tray == _Tray.attach ? PIcon.close : PIcon.plus,
-                    bg: _tray == _Tray.attach
-                        ? AppTheme.accent
-                        : const Color(0x0D000000),
-                    fg: _tray == _Tray.attach
-                        ? Colors.white
-                        : AppTheme.subtleText,
-                    onTap: () => setState(() => _tray =
-                        _tray == _Tray.attach ? _Tray.none : _Tray.attach),
-                    tooltip: 'composer.attach'.tr,
-                  ),
-                  const SizedBox(width: 8),
-                  // Input pill with the sticker button inside.
-                  Expanded(
-                    child: Container(
-                      constraints: const BoxConstraints(minHeight: 40),
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(20),
-                        border: Border.all(color: AppTheme.dividerColor),
-                      ),
-                      child: Row(
-                        crossAxisAlignment: CrossAxisAlignment.center,
-                        children: [
-                          Expanded(
-                            child: Focus(
-                              onKeyEvent: (node, event) {
-                                if (event is KeyDownEvent &&
-                                    event.logicalKey ==
-                                        LogicalKeyboardKey.enter &&
-                                    !HardwareKeyboard
-                                        .instance.isShiftPressed) {
-                                  if (_canSend) _sendText();
-                                  return KeyEventResult.handled;
-                                }
-                                return KeyEventResult.ignored;
-                              },
-                              child: TextField(
-                                controller: _ctl,
-                                focusNode: _focus,
-                                minLines: 1,
-                                maxLines: 5,
-                                textInputAction: TextInputAction.newline,
-                                style: const TextStyle(fontSize: 15),
-                                decoration: InputDecoration(
-                                  hintText: 'composer.hint'.tr,
-                                  hintStyle: const TextStyle(
-                                      color: AppTheme.subtleText),
-                                  isDense: true,
-                                  border: InputBorder.none,
-                                  contentPadding: const EdgeInsets.fromLTRB(
-                                      14, 10, 4, 10),
-                                ),
-                              ),
-                            ),
-                          ),
-                          IconButton(
-                            icon: PebbleIcon(PIcon.smile,
-                                size: 22,
-                                color: _tray == _Tray.sticker
-                                    ? AppTheme.accent
-                                    : AppTheme.subtleText),
-                            onPressed: () => setState(() => _tray =
-                                _tray == _Tray.sticker
-                                    ? _Tray.none
-                                    : _Tray.sticker),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  // Send when there's text, otherwise voice-record.
-                  _canSend
-                      ? _CircleButton(
-                          icon: PIcon.send,
+                children: inVoice
+                    ? [
+                        // Voice mode: expanded attach icons + close.
+                        _iconBtn(PIcon.plus,
+                            () => setState(() => _tray = _Tray.attach)),
+                        _iconBtn(PIcon.camera, _openCamera),
+                        _iconBtn(PIcon.image,
+                            () => _pickAndSendPhoto(ImageSource.gallery)),
+                        const SizedBox(width: 4),
+                        Expanded(child: inputPill),
+                        const SizedBox(width: 8),
+                        _CircleButton(
+                          icon: PIcon.close,
                           bg: AppTheme.accent,
                           fg: Colors.white,
-                          onTap: _sendText,
-                        )
-                      : _CircleButton(
-                          icon: PIcon.mic,
-                          bg: _tray == _Tray.voice
+                          onTap: () =>
+                              setState(() => _tray = _Tray.none),
+                        ),
+                      ]
+                    : [
+                        _CircleButton(
+                          icon: _tray == _Tray.attach
+                              ? PIcon.close
+                              : PIcon.plus,
+                          bg: _tray == _Tray.attach
                               ? AppTheme.accent
                               : const Color(0x0D000000),
-                          fg: _tray == _Tray.voice
+                          fg: _tray == _Tray.attach
                               ? Colors.white
                               : AppTheme.subtleText,
                           onTap: () => setState(() => _tray =
-                              _tray == _Tray.voice ? _Tray.none : _Tray.voice),
+                              _tray == _Tray.attach
+                                  ? _Tray.none
+                                  : _Tray.attach),
+                          tooltip: 'composer.attach'.tr,
                         ),
-                ],
+                        const SizedBox(width: 8),
+                        Expanded(child: inputPill),
+                        const SizedBox(width: 8),
+                        _canSend
+                            ? _CircleButton(
+                                icon: PIcon.send,
+                                bg: AppTheme.accent,
+                                fg: Colors.white,
+                                onTap: _sendText,
+                              )
+                            : _CircleButton(
+                                icon: PIcon.mic,
+                                bg: const Color(0x0D000000),
+                                fg: AppTheme.subtleText,
+                                onTap: () => setState(
+                                    () => _tray = _Tray.voice),
+                              ),
+                      ],
               ),
             ),
           ],
