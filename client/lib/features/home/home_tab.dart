@@ -55,7 +55,16 @@ class _HomeTabState extends State<HomeTab> {
       builder: (context, _) {
         final joined =
             _c.rooms.where((r) => r.membership == Membership.join);
-        final friends = joined.where(isOneToOne).toList();
+        final dms = joined.where(isOneToOne).toList();
+        final friends = dms.where((r) => !isBotRoom(r)).toList();
+        // One circle per bot, even if duplicate DM rooms exist.
+        final bots = <Room>[];
+        final seenBots = <String>{};
+        for (final r in dms) {
+          if (!isBotRoom(r)) continue;
+          final peer = directPeerId(r);
+          if (peer == null || seenBots.add(peer)) bots.add(r);
+        }
         final groups = joined.where((r) => !isOneToOne(r)).toList();
         final mxid = _c.userID ?? '';
         final name = (_profile?.displayName?.isNotEmpty ?? false)
@@ -133,6 +142,20 @@ class _HomeTabState extends State<HomeTab> {
               ),
             ),
 
+            // Bots row.
+            _sectionLabel('home.bots'.tr),
+            SizedBox(
+              height: 92,
+              child: ListView(
+                scrollDirection: Axis.horizontal,
+                padding: const EdgeInsets.symmetric(horizontal: 20),
+                children: [
+                  _addBotCircle(),
+                  for (final r in bots) _friendCircle(r),
+                ],
+              ),
+            ),
+
             // Groups row — same circle layout as Friends.
             _sectionLabel('home.groups'.tr),
             SizedBox(
@@ -162,6 +185,29 @@ class _HomeTabState extends State<HomeTab> {
       );
 
   void _addFriends() => context.push('/add-friends');
+
+  /// Start a chat with the first not-yet-added known bot.
+  Future<void> _addBot() async {
+    final me = _c.userID;
+    if (me == null) return;
+    final domain = me.substring(me.indexOf(':') + 1);
+    final messenger = ScaffoldMessenger.of(context);
+    for (final localpart in botLocalparts) {
+      final mxid = '@$localpart:$domain';
+      // Already have a room with this bot (any membership) — don't duplicate.
+      if (_c.rooms.any((r) => directPeerId(r) == mxid)) continue;
+      try {
+        final id = await _c.startDirectChat(mxid);
+        if (mounted) {
+          context.push('/rooms/${Uri.encodeComponent(id)}');
+        }
+      } catch (e) {
+        messenger.showSnackBar(SnackBar(content: Text('$e')));
+      }
+      return;
+    }
+    messenger.showSnackBar(SnackBar(content: Text('bots.allAdded'.tr)));
+  }
 
   Future<void> _newGroup() async {
     final id = await context.push<String>('/create-group');
@@ -248,6 +294,35 @@ class _HomeTabState extends State<HomeTab> {
                     color: const Color(0x33000000),
                     width: 1.5,
                     style: BorderStyle.solid),
+              ),
+              child: const PebbleIcon(PIcon.plus,
+                  size: 20, color: AppTheme.subtleText),
+            ),
+            const SizedBox(height: 6),
+            Text('home.add'.tr,
+                style: const TextStyle(
+                    fontSize: 11, color: AppTheme.subtleText)),
+          ],
+        ),
+      ),
+    );
+  }
+
+  /// "Add bot" circle — mirrors [_addFriendCircle].
+  Widget _addBotCircle() {
+    return GestureDetector(
+      onTap: _addBot,
+      child: SizedBox(
+        width: 64,
+        child: Column(
+          children: [
+            Container(
+              width: 56,
+              height: 56,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                border: Border.all(
+                    color: const Color(0x33000000), width: 1.5),
               ),
               child: const PebbleIcon(PIcon.plus,
                   size: 20, color: AppTheme.subtleText),

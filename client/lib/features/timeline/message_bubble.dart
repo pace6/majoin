@@ -8,8 +8,10 @@ import '../flex/flex_renderer.dart';
 import '../../core/client/matrix_client.dart';
 import '../../core/i18n/strings.dart';
 import '../../ui/theme/app_theme.dart';
+import '../../core/util/room_ext.dart';
 import '../../ui/widgets/mxc_image.dart';
 import 'media_players.dart';
+import 'read_receipts_sheet.dart';
 
 class MessageBubble extends StatelessWidget {
   const MessageBubble({
@@ -45,6 +47,11 @@ class MessageBubble extends StatelessWidget {
         event.hasAggregatedEvents(timeline, RelationshipTypes.edit);
 
     final time = DateFormat.Hm().format(event.originServerTs);
+    // 1:1 chats get a simple ✓✓; groups get a tappable reader count instead.
+    final isGroup = !isOneToOne(event.room);
+    final myId = MatrixClientService.instance.client.userID;
+    final readerCount =
+        event.receipts.where((r) => r.user.id != myId).length;
     final timeWidget = Padding(
       padding: const EdgeInsets.symmetric(horizontal: 4),
       child: Row(
@@ -53,10 +60,19 @@ class MessageBubble extends StatelessWidget {
           Text(time,
               style: const TextStyle(
                   fontSize: 10, color: AppTheme.subtleText)),
-          if (_mine) ...[
+          if (_mine && !isGroup) ...[
             const SizedBox(width: 3),
             const Text('✓✓',
                 style: TextStyle(fontSize: 10, color: AppTheme.accent)),
+          ],
+          if (isGroup && readerCount > 0) ...[
+            const SizedBox(width: 3),
+            const Icon(Icons.remove_red_eye,
+                size: 10, color: AppTheme.subtleText),
+            const SizedBox(width: 1),
+            Text('$readerCount',
+                style: const TextStyle(
+                    fontSize: 9.5, color: AppTheme.subtleText)),
           ],
         ],
       ),
@@ -75,6 +91,8 @@ class MessageBubble extends StatelessWidget {
 
     bubble = GestureDetector(
       onLongPress: onLongPress,
+      // Tap a message to see who has read it.
+      onTap: () => showReadReceiptsSheet(context, event),
       child: bubble,
     );
 
@@ -166,9 +184,11 @@ class MessageBubble extends StatelessWidget {
     if (display.type == kFlexEventType) {
       final flexJson = display.content['app.majoin.flex'];
       if (flexJson is Map) {
-        return FlexBubbleView(
-          bubble: FlexBubble.fromJson(Map<String, dynamic>.from(flexJson)),
-        );
+        final m = Map<String, dynamic>.from(flexJson);
+        if (m['type'] == 'carousel') {
+          return FlexCarouselView(carousel: FlexCarousel.fromJson(m));
+        }
+        return FlexBubbleView(bubble: FlexBubble.fromJson(m));
       }
       return Text(display.body);
     }

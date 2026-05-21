@@ -1,4 +1,35 @@
 import 'package:matrix/matrix.dart';
+import 'mxid.dart';
+
+/// Localparts of known Majoin bot accounts (server-agnostic).
+const botLocalparts = {'weather'};
+
+/// The other party of a 1:1 room — its `m.direct` peer, or the sole hero.
+/// Null for group rooms.
+String? directPeerId(Room room) {
+  if (!isOneToOne(room)) return null;
+  final heroes = _heroes(room);
+  return room.directChatMatrixID ?? (heroes.isEmpty ? null : heroes.first);
+}
+
+/// True if this 1:1 room's peer is a known Majoin bot.
+bool isBotRoom(Room room) {
+  final peer = directPeerId(room);
+  return peer != null && botLocalparts.contains(localpartOf(peer));
+}
+
+/// When the chat started — the user's own join/invite event timestamp,
+/// falling back to room creation. `getState` returns a StrippedStateEvent;
+/// only joined-room state (the full [Event]) carries a timestamp.
+DateTime? roomStartTime(Room room) {
+  final myId = room.client.userID;
+  final member =
+      myId == null ? null : room.getState(EventTypes.RoomMember, myId);
+  if (member is Event) return member.originServerTs;
+  final create = room.getState(EventTypes.RoomCreate);
+  if (create is Event) return create.originServerTs;
+  return null;
+}
 
 /// Other-party user IDs from the room summary heroes — available even when
 /// full member state hasn't loaded (unlike getParticipants()).

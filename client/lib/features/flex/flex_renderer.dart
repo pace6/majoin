@@ -40,6 +40,30 @@ class FlexBubbleView extends StatelessWidget {
   }
 }
 
+/// Render a [FlexCarousel] — a fixed-height horizontal pager of bubbles.
+class FlexCarouselView extends StatelessWidget {
+  const FlexCarouselView({super.key, required this.carousel});
+  final FlexCarousel carousel;
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      height: 248,
+      child: ListView.separated(
+        scrollDirection: Axis.horizontal,
+        padding: EdgeInsets.zero,
+        physics: const ClampingScrollPhysics(),
+        itemCount: carousel.bubbles.length,
+        separatorBuilder: (_, _) => const SizedBox(width: 8),
+        itemBuilder: (_, i) => SizedBox(
+          width: 232,
+          child: FlexBubbleView(bubble: carousel.bubbles[i]),
+        ),
+      ),
+    );
+  }
+}
+
 Widget _renderComponent(FlexComponent c) {
   if (c is FlexBox) return _renderBox(c);
   if (c is FlexText) return _renderText(c);

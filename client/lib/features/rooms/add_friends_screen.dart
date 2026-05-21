@@ -78,18 +78,6 @@ class _AddFriendsScreenState extends State<AddFriendsScreen> {
     }
   }
 
-  /// MXIDs the user already has a direct chat with.
-  Set<String> _connectedPeers() {
-    final peers = <String>{};
-    for (final r in _c.rooms) {
-      if (r.isDirectChat) {
-        final p = r.directChatMatrixID;
-        if (p != null) peers.add(p);
-      }
-    }
-    return peers;
-  }
-
   Future<void> _openChat(DirectoryUser u) async {
     if (_openingUserId != null) return;
     setState(() => _openingUserId = u.userId);
@@ -206,9 +194,9 @@ class _AddFriendsScreenState extends State<AddFriendsScreen> {
     final List<DirectoryUser> shown;
     String? header;
     if (q.isEmpty) {
-      // No query — show the directory as suggestions, hiding existing chats.
-      final connected = _connectedPeers();
-      shown = users.where((u) => !connected.contains(u.userId)).toList();
+      // No query — show the whole directory. (Don't hide people already in
+      // a chat; tapping them just reopens the existing room.)
+      shown = users;
       header = 'addFriends.suggested'.tr;
     } else {
       shown = users

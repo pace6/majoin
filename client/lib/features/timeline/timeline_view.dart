@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:matrix/matrix.dart';
@@ -16,6 +17,7 @@ import '../../ui/theme/app_theme.dart';
 import '../../ui/widgets/mxc_image.dart';
 import '../../ui/widgets/pebble_icon.dart';
 import '../rooms/add_member_sheet.dart';
+import '../rooms/room_members_sheet.dart';
 
 class TimelineView extends StatefulWidget {
   const TimelineView({super.key, required this.room});
@@ -172,12 +174,7 @@ class _TimelineViewState extends State<TimelineView> {
           children: [
             Expanded(
               child: events.isEmpty
-                  ? Center(
-                      child: Text(
-                        'chat.empty'.tr,
-                        style: const TextStyle(color: AppTheme.subtleText),
-                      ),
-                    )
+                  ? _EmptyChat(room: widget.room)
                   : ListView.builder(
                 controller: _scrollCtl,
                 reverse: true,
@@ -258,32 +255,139 @@ class _TimelineViewState extends State<TimelineView> {
       a.year == b.year && a.month == b.month && a.day == b.day;
 }
 
-/// Thin bar above the composer — shows peers currently typing.
-/// Parent [TimelineView] rebuilds on every sync, so this stays current.
-class _TypingIndicator extends StatelessWidget {
+/// Thin bar above the composer — shows a bubble of bouncing dots while a
+/// peer is typing. Parent [TimelineView] rebuilds on every sync.
+class _TypingIndicator extends StatefulWidget {
   const _TypingIndicator({required this.room});
   final Room room;
 
   @override
+  State<_TypingIndicator> createState() => _TypingIndicatorState();
+}
+
+class _TypingIndicatorState extends State<_TypingIndicator>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _ctl;
+
+  @override
+  void initState() {
+    super.initState();
+    _ctl = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1100),
+    )..repeat();
+  }
+
+  @override
+  void dispose() {
+    _ctl.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
     final myId = MatrixClientService.instance.client.userID;
-    final names = room.typingUsers
+    final names = widget.room.typingUsers
         .where((u) => u.id != myId)
         .map((u) => u.calcDisplayname())
         .toList();
     if (names.isEmpty) return const SizedBox.shrink();
-    final label = room.isDirectChat
-        ? 'chat.typing'.tr
-        : '${names.join(', ')} ${'chat.typing'.tr}';
-    return Container(
-      width: double.infinity,
+
+    return Padding(
       padding: const EdgeInsets.fromLTRB(16, 4, 16, 4),
-      child: Text(
-        label,
-        style: const TextStyle(
-            fontSize: 11,
-            color: Color(0xE6FFFFFF),
-            fontStyle: FontStyle.italic),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
+            decoration: BoxDecoration(
+              color: AppTheme.theirBubble,
+              borderRadius: const BorderRadius.only(
+                topLeft: Radius.circular(16),
+                topRight: Radius.circular(16),
+                bottomLeft: Radius.circular(6),
+                bottomRight: Radius.circular(16),
+              ),
+              boxShadow: const [
+                BoxShadow(
+                    color: Color(0x14000000),
+                    blurRadius: 2,
+                    offset: Offset(0, 1)),
+              ],
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [for (var i = 0; i < 3; i++) _dot(i)],
+            ),
+          ),
+          if (!widget.room.isDirectChat) ...[
+            const SizedBox(width: 8),
+            Flexible(
+              child: Text(
+                '${names.join(', ')} ${'chat.typing'.tr}',
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(
+                    fontSize: 11.5, color: AppTheme.subtleText),
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _dot(int i) {
+    return AnimatedBuilder(
+      animation: _ctl,
+      builder: (_, _) {
+        // Staggered wave: each dot is 1/6 of a cycle behind the previous.
+        final phase = (_ctl.value + i * 0.16) % 1.0;
+        final lift = math.sin(phase * math.pi); // 0 → 1 → 0
+        return Padding(
+          padding: EdgeInsets.only(
+              left: i == 0 ? 0 : 4, bottom: 2 + lift * 4),
+          child: Opacity(
+            opacity: 0.35 + 0.65 * lift,
+            child: Container(
+              width: 7,
+              height: 7,
+              decoration: const BoxDecoration(
+                color: AppTheme.subtleText,
+                shape: BoxShape.circle,
+              ),
+            ),
+          ),
+        );
+      },
+    );
+  }
+}
+
+/// Empty timeline — no messages yet, so show when the chat started
+/// (the user's own join/invite event, falling back to room creation).
+class _EmptyChat extends StatelessWidget {
+  const _EmptyChat({required this.room});
+  final Room room;
+
+  @override
+  Widget build(BuildContext context) {
+    final started = roomStartTime(room);
+    return Center(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text('chat.empty'.tr,
+              style: const TextStyle(color: AppTheme.subtleText)),
+          if (started != null) ...[
+            const SizedBox(height: 6),
+            Text(
+              '${'chat.startedOn'.tr} '
+              '${DateFormat('d MMM y, HH:mm').format(started)}',
+              style: const TextStyle(
+                  fontSize: 12, color: AppTheme.subtleText),
+            ),
+          ],
+        ],
       ),
     );
   }
@@ -362,24 +466,31 @@ class TimelineAppBar extends StatelessWidget implements PreferredSizeWidget {
           _RoomHeaderAvatar(room: room),
           const SizedBox(width: 10),
           Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(
-                  roomTitle(room),
-                  style: const TextStyle(
-                      fontSize: 15.5, fontWeight: FontWeight.w600),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-                if (!isOneToOne(room))
+            child: GestureDetector(
+              behavior: HitTestBehavior.opaque,
+              // Tapping a group header opens the member list.
+              onTap: isOneToOne(room)
+                  ? null
+                  : () => showRoomMembersSheet(context, room),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
                   Text(
-                    '${room.summary.mJoinedMemberCount ?? 0} ${'home.members'.tr}',
+                    roomTitle(room),
                     style: const TextStyle(
-                        fontSize: 11.5, color: AppTheme.subtleText),
+                        fontSize: 15.5, fontWeight: FontWeight.w600),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
                   ),
-              ],
+                  if (!isOneToOne(room))
+                    Text(
+                      '${room.summary.mJoinedMemberCount ?? 0} ${'home.members'.tr}',
+                      style: const TextStyle(
+                          fontSize: 11.5, color: AppTheme.subtleText),
+                    ),
+                ],
+              ),
             ),
           ),
         ],

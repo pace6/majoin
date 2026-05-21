@@ -45,6 +45,26 @@ class FlexBubble {
       );
 }
 
+/// A carousel — a horizontally swipeable row of bubbles.
+class FlexCarousel {
+  FlexCarousel({required this.bubbles, this.altText = 'flex carousel'});
+  final List<FlexBubble> bubbles;
+  final String altText;
+
+  Map<String, dynamic> toJson() => {
+        'type': 'carousel',
+        'contents': bubbles.map((b) => b.toJson()).toList(),
+        'altText': altText,
+      };
+
+  static FlexCarousel fromJson(Map<String, dynamic> j) => FlexCarousel(
+        bubbles: ((j['contents'] as List?) ?? const [])
+            .map((e) => FlexBubble.fromJson(e as Map<String, dynamic>))
+            .toList(),
+        altText: (j['altText'] as String?) ?? 'flex carousel',
+      );
+}
+
 abstract class FlexComponent {
   String get type;
   Map<String, dynamic> toJson();

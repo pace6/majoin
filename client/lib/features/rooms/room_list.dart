@@ -166,8 +166,11 @@ class _RoomTileState extends State<_RoomTile> {
     } else {
       preview = _cachedPreview;
     }
+    // No messages at all — show a hint instead of a blank row.
+    if (preview.isEmpty && !invited) preview = 'rooms.noMessages'.tr;
 
-    final ts = r.lastEvent?.originServerTs;
+    // Fall back to when the chat started so the row never looks blank.
+    final ts = r.lastEvent?.originServerTs ?? roomStartTime(r);
     final timeLabel = ts == null ? '' : _formatTime(ts);
 
     return InkWell(
