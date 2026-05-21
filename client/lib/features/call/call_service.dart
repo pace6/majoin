@@ -1,7 +1,9 @@
 import 'dart:async';
+import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_foreground_task/flutter_foreground_task.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:flutter_webrtc/flutter_webrtc.dart' as rtc;
 import 'package:just_audio/just_audio.dart';
@@ -47,6 +49,44 @@ class CallService implements WebRTCDelegate {
       );
     } catch (e) {
       debugPrint('CallService: notification init failed: $e');
+    }
+    // Foreground-service config — see _startCallService.
+    FlutterForegroundTask.init(
+      androidNotificationOptions: AndroidNotificationOptions(
+        channelId: 'majoin-call-service',
+        channelName: 'Ongoing call',
+        channelImportance: NotificationChannelImportance.LOW,
+        priority: NotificationPriority.LOW,
+      ),
+      iosNotificationOptions: const IOSNotificationOptions(),
+      foregroundTaskOptions: ForegroundTaskOptions(
+        eventAction: ForegroundTaskEventAction.nothing(),
+      ),
+    );
+  }
+
+  // Android suspends a backgrounded process, killing the WebRTC connection
+  // mid-call. A foreground service (microphone/camera type) keeps the process
+  // alive for the call's duration. iOS relies on its UIBackgroundModes
+  // (audio/voip) instead, so this is Android-only.
+  Future<void> _startCallService(CallSession session) async {
+    if (!Platform.isAndroid) return;
+    if (await FlutterForegroundTask.isRunningService) return;
+    await FlutterForegroundTask.startService(
+      serviceId: 42,
+      serviceTypes: [
+        ForegroundServiceTypes.microphone,
+        if (session.type == CallType.kVideo) ForegroundServiceTypes.camera,
+      ],
+      notificationTitle: 'majoin',
+      notificationText: 'call.ongoing'.tr,
+    );
+  }
+
+  Future<void> _stopCallService() async {
+    if (!Platform.isAndroid) return;
+    if (await FlutterForegroundTask.isRunningService) {
+      await FlutterForegroundTask.stopService();
     }
   }
 
@@ -116,6 +156,7 @@ class CallService implements WebRTCDelegate {
 
   @override
   Future<void> handleNewCall(CallSession session) async {
+    await _startCallService(session);
     final navState = _navKey.currentState;
     if (navState == null) return;
     navState.push(
@@ -130,6 +171,7 @@ class CallService implements WebRTCDelegate {
   Future<void> handleCallEnded(CallSession session) async {
     await stopRingtone();
     await stopRingback();
+    await _stopCallService();
     final navState = _navKey.currentState;
     if (navState == null) return;
     if (navState.canPop()) navState.pop();
@@ -138,6 +180,7 @@ class CallService implements WebRTCDelegate {
   @override
   Future<void> handleMissedCall(CallSession session) async {
     await stopRingtone();
+    await _stopCallService();
     await _notif.show(
       session.callId.hashCode,
       roomTitle(session.room),
