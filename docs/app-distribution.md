@@ -25,11 +25,7 @@ Reuse the existing FCM project if there is one (see `docs/push-setup.md`),
 otherwise create a project at <https://console.firebase.google.com>.
 
 - **Add an Android app** — package name `app.majoin.majoin`.
-- **Add an iOS app** — bundle id must match the Xcode target.
-  > ⚠️ The iOS Runner target's bundle id is currently `client.majoin.majoin`
-  > (`ios/Runner.xcodeproj/project.pbxproj`), which does **not** match the
-  > Android id `app.majoin.majoin`. Decide on one id and fix Xcode before
-  > registering — using two ids splits the app across stores/Firebase.
+- **Add an iOS app** — bundle id `app.majoin.majoin`.
 
 Copy each app's **App ID** (looks like `1:1234567890:android:abc123`) from
 Project settings → General.
