@@ -35,7 +35,9 @@ _WMO = {
 }
 
 
-async def fetch_weather(lat: float = LAT, lon: float = LON) -> dict:
+async def fetch_weather(
+    lat: float = LAT, lon: float = LON, days: int = 1
+) -> dict:
     """Return the raw open-meteo forecast payload. Defaults to Bangkok."""
     params = {
         "latitude": lat,
@@ -43,7 +45,7 @@ async def fetch_weather(lat: float = LAT, lon: float = LON) -> dict:
         "current": "temperature_2m,relative_humidity_2m,weather_code,wind_speed_10m",
         "daily": "weather_code,temperature_2m_max,temperature_2m_min",
         "timezone": "auto",
-        "forecast_days": 1,
+        "forecast_days": days,
     }
     async with aiohttp.ClientSession() as session:
         async with session.get(
@@ -140,3 +142,48 @@ def weather_flex(data: dict, greeting: bool = False) -> tuple[dict, str]:
         "body": {"type": "box", "layout": "vertical", "spacing": "md", "contents": contents},
     }
     return bubble, alt
+
+
+def _day_bubble(daily: dict, i: int, place: str, now_temp: int | None) -> dict:
+    """One day card for the forecast carousel."""
+    code = int(daily["weather_code"][i])
+    emoji, desc = _WMO.get(code, ("\U0001f321️", "Unknown"))
+    hi = round(daily["temperature_2m_max"][i])
+    lo = round(daily["temperature_2m_min"][i])
+    date = datetime.fromisoformat(daily["time"][i]).strftime("%a %d %b")
+
+    contents = [
+        _text(f"{emoji}  {place}", weight="bold", size="lg", color="#1A1A1A"),
+        _text(date, size="sm", color="#888888"),
+        {"type": "separator"},
+    ]
+    if now_temp is not None:
+        contents.append(
+            _text(f"{now_temp}°", weight="bold", size="xl", color="#2563EB"))
+    contents += [
+        _text(desc, size="sm", color="#555555"),
+        _row("High", f"{hi}°"),
+        _row("Low", f"{lo}°"),
+    ]
+    return {
+        "type": "bubble",
+        "body": {
+            "type": "box",
+            "layout": "vertical",
+            "spacing": "md",
+            "contents": contents,
+        },
+    }
+
+
+def weather_carousel(data: dict, place: str = CITY) -> tuple[dict, str]:
+    """Build a multi-day forecast carousel (and a plain-text alt)."""
+    daily = data["daily"]
+    now_temp = round(data["current"]["temperature_2m"])
+    days = len(daily["time"])
+    bubbles = [
+        _day_bubble(daily, i, place, now_temp if i == 0 else None)
+        for i in range(days)
+    ]
+    alt = f"{place} — {days}-day forecast"
+    return {"type": "carousel", "altText": alt, "contents": bubbles}, alt

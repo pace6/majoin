@@ -23,7 +23,9 @@ _SYSTEM = (
     "tool — never invent numbers. Pass the city the user names; if they "
     "name none, leave location empty (defaults to Bangkok). Reply in the "
     "user's language (Thai or English). For chit-chat unrelated to weather, "
-    "answer briefly and, if natural, offer to share the forecast."
+    "answer briefly and, if natural, offer to share the forecast. "
+    "A message in parentheses like '(the user sent a sticker)' is a note "
+    "about a non-text message — react warmly and invite them to chat."
 )
 
 

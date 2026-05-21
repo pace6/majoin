@@ -22,12 +22,14 @@ from nio import (
     InviteMemberEvent,
     LoginError,
     RoomCreateError,
+    RoomMessageMedia,
     RoomMessageText,
     RoomPreset,
+    StickerEvent,
 )
 
 from agent import ask_claude
-from weather import BANGKOK, fetch_weather, weather_flex
+from weather import BANGKOK, fetch_weather, weather_carousel
 
 logging.basicConfig(
     level=logging.INFO,
@@ -71,28 +73,45 @@ class WeatherBot:
         self._start_ms = int(datetime.now(BANGKOK).timestamp() * 1000)
         self.client.add_event_callback(self._on_invite, InviteMemberEvent)
         self.client.add_event_callback(self._on_message, RoomMessageText)
+        # The bot replies to anything — stickers and media too, not just text.
+        self.client.add_event_callback(self._on_sticker, StickerEvent)
+        self.client.add_event_callback(self._on_media, RoomMessageMedia)
 
     async def _on_invite(self, room, event) -> None:
-        """Auto-join if someone invites the bot directly."""
-        if event.state_key == self.user_id:
-            await self.client.join(room.room_id)
-            log.info("joined %s (invited)", room.room_id)
+        """A user invited the bot — join and greet them."""
+        if event.state_key != self.user_id:
+            return
+        await self.client.join(room.room_id)
+        log.info("joined %s (invited)", room.room_id)
+        await self._send_greeting(room.room_id)
 
     async def _on_message(self, room, event) -> None:
-        """Reply to a user message — routed through Claude (Agent SDK)."""
+        """Reply to a text message."""
+        await self._reply(room, event, (event.body or "").strip())
+
+    async def _on_sticker(self, room, event) -> None:
+        """Reply to a sticker — the bot always responds."""
+        await self._reply(room, event, "(the user sent a sticker)")
+
+    async def _on_media(self, room, event) -> None:
+        """Reply to an image / file / audio / video."""
+        await self._reply(room, event, "(the user sent an attachment)")
+
+    async def _reply(self, room, event, prompt: str) -> None:
+        """Route a user message through Claude and reply. Shared by every
+        message type so the bot always responds."""
         if event.sender == self.user_id:
             return
         # Skip history replayed on (re)sync.
         if event.server_timestamp < self._start_ms:
             return
-        text = (event.body or "").strip()
-        if not text:
+        if not prompt:
             return
         # Keep the "typing…" indicator alive for the whole Claude call —
         # a single typing notice expires, so re-assert it on a timer.
         typing = asyncio.create_task(self._keep_typing(room.room_id))
         try:
-            reply = await ask_claude(text)
+            reply = await ask_claude(prompt)
         except Exception as exc:  # noqa: BLE001 - demo bot, degrade gracefully
             log.warning("claude reply failed: %s", exc)
             reply = "ขออภัย ตอนนี้ตอบไม่ได้ ลองใหม่อีกครั้งนะ 🌧️"
@@ -127,11 +146,12 @@ class WeatherBot:
         log.info("created DM %s with %s", resp.room_id, user_id)
         return resp.room_id
 
-    async def _send_flex(self, room_id: str, bubble: dict, alt: str) -> None:
+    async def _send_flex(self, room_id: str, payload: dict, alt: str) -> None:
+        """Send a Flex payload — a bubble or a carousel."""
         await self.client.room_send(
             room_id,
             message_type=FLEX_EVENT_TYPE,
-            content={"msgtype": "m.text", "body": alt, "app.majoin.flex": bubble},
+            content={"msgtype": "m.text", "body": alt, "app.majoin.flex": payload},
         )
 
     async def _send_text(self, room_id: str, body: str) -> None:
@@ -143,32 +163,36 @@ class WeatherBot:
 
     # ---- Flows ----
 
+    async def _send_greeting(self, room_id: str) -> None:
+        """Welcome line + a multi-day weather carousel."""
+        try:
+            data = await fetch_weather(days=5)
+            carousel, alt = weather_carousel(data)
+            await self._send_text(room_id, "ยินดีต้อนรับสู่ Majoin! 🌤️")
+            await self._send_flex(room_id, carousel, alt)
+        except Exception as exc:  # noqa: BLE001 - demo bot, log and move on
+            log.warning("greeting in %s failed: %s", room_id, exc)
+
     async def greet(self, user_id: str) -> None:
-        """New user: open a DM, say hello, send today's weather."""
+        """New user (from the register hook): open a DM, say hello."""
         if user_id == self.user_id:
             return
         room_id = await self._direct_room(user_id)
         if room_id is None:
             return
-        try:
-            data = await fetch_weather()
-            bubble, alt = weather_flex(data, greeting=True)
-            await self._send_text(room_id, "ยินดีต้อนรับสู่ Majoin! 🌤️")
-            await self._send_flex(room_id, bubble, alt)
-            log.info("greeted %s", user_id)
-        except Exception as exc:  # noqa: BLE001 - demo bot, log and move on
-            log.warning("greet %s failed: %s", user_id, exc)
+        await self._send_greeting(room_id)
+        log.info("greeted %s", user_id)
 
     async def morning_broadcast(self) -> None:
         try:
-            data = await fetch_weather()
+            data = await fetch_weather(days=5)
         except Exception as exc:  # noqa: BLE001
             log.warning("morning fetch failed: %s", exc)
             return
-        bubble, alt = weather_flex(data)
+        carousel, alt = weather_carousel(data)
         for room_id in list(self.client.rooms):
             try:
-                await self._send_flex(room_id, bubble, alt)
+                await self._send_flex(room_id, carousel, alt)
             except Exception as exc:  # noqa: BLE001
                 log.warning("broadcast to %s failed: %s", room_id, exc)
         log.info("morning broadcast sent to %d rooms", len(self.client.rooms))
