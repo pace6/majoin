@@ -186,6 +186,7 @@ const Map<String, Map<String, String>> _bundles = {
     'msg.image': 'รูปภาพ',
     'msg.video': 'วิดีโอ',
     'msg.audio': 'ข้อความเสียง',
+    'msg.update': 'อัปเดตห้องแชท',
 
     // Chat
     'chat.typing': 'กำลังพิมพ์…',
@@ -419,6 +420,7 @@ const Map<String, Map<String, String>> _bundles = {
     'msg.image': 'Photo',
     'msg.video': 'Video',
     'msg.audio': 'Voice message',
+    'msg.update': 'Chat updated',
 
     'chat.typing': 'typing…',
     'chat.empty': 'No messages yet — say hi',

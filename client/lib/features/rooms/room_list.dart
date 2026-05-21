@@ -12,6 +12,7 @@ import '../../ui/widgets/mxc_image.dart';
 String _lastPreview(Event e) {
   if (e.type == 'm.sticker') return 'msg.sticker'.tr;
   if (e.type == 'app.majoin.flex') return 'msg.flex'.tr;
+  if (e.type == 'm.room.encrypted') return 'chat.undecryptable'.tr;
   if (e.type.startsWith('m.call.')) return 'call.missed'.tr;
   switch (e.messageType) {
     case MessageTypes.Image:
@@ -23,7 +24,10 @@ String _lastPreview(Event e) {
     case MessageTypes.File:
       return 'msg.file'.tr;
     default:
-      return e.body;
+      // Membership changes, redactions, etc. have no body — fall back to a
+      // human-readable line so the row never blanks out.
+      final body = e.body.trim();
+      return body.isNotEmpty ? body : 'msg.update'.tr;
   }
 }
 
