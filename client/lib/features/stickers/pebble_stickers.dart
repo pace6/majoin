@@ -402,6 +402,7 @@ class _PebbleStickerPanelState extends State<PebbleStickerPanel> {
   Widget build(BuildContext context) {
     final pack = pebbleStickerPacks[_pack];
     return Container(
+      width: double.infinity,
       height: 268,
       decoration: const BoxDecoration(
         color: Color(0x06000000),
