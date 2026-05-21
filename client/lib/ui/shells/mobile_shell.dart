@@ -1,6 +1,9 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:matrix/matrix.dart';
+import '../../core/client/matrix_client.dart';
 import '../../core/i18n/strings.dart';
 import '../../features/home/home_tab.dart';
 import '../../features/profile/profile_screen.dart';
@@ -20,6 +23,7 @@ class MobileShell extends StatefulWidget {
 
 class _MobileShellState extends State<MobileShell> {
   int _tab = 0; // Default to Home
+  StreamSubscription<SyncUpdate>? _sync;
 
   static const _tabs = <_TabSpec>[
     _TabSpec('tab.home', PIcon.home),
@@ -27,6 +31,31 @@ class _MobileShellState extends State<MobileShell> {
     _TabSpec('tab.profile', PIcon.person),
     _TabSpec('tab.settings', PIcon.gear),
   ];
+
+  @override
+  void initState() {
+    super.initState();
+    // Rebuild on every sync so the Chats badge stays current.
+    _sync = MatrixClientService.instance.client.onSync.stream
+        .listen((_) => setState(() {}));
+  }
+
+  @override
+  void dispose() {
+    _sync?.cancel();
+    super.dispose();
+  }
+
+  /// Chats needing attention — unread, marked unread, or pending invites.
+  int get _unreadChats {
+    final c = MatrixClientService.instance.client;
+    return c.rooms
+        .where((r) =>
+            r.membership == Membership.invite ||
+            r.notificationCount > 0 ||
+            r.markedUnread)
+        .length;
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -58,6 +87,7 @@ class _MobileShellState extends State<MobileShell> {
                     child: _TabButton(
                       spec: _tabs[i],
                       selected: _tab == i,
+                      badge: i == 1 ? _unreadChats : 0,
                       onTap: () => setState(() => _tab = i),
                     ),
                   ),
@@ -81,14 +111,27 @@ class _TabButton extends StatelessWidget {
     required this.spec,
     required this.selected,
     required this.onTap,
+    this.badge = 0,
   });
   final _TabSpec spec;
   final bool selected;
   final VoidCallback onTap;
+  final int badge;
 
   @override
   Widget build(BuildContext context) {
     final color = selected ? AppTheme.accent : AppTheme.subtleText;
+    Widget icon =
+        PebbleIcon(spec.icon, color: color, size: 24, filled: selected);
+    if (badge > 0) {
+      icon = Stack(
+        clipBehavior: Clip.none,
+        children: [
+          icon,
+          Positioned(right: -7, top: -4, child: _Badge(count: badge)),
+        ],
+      );
+    }
     return InkWell(
       onTap: onTap,
       child: Padding(
@@ -96,7 +139,7 @@ class _TabButton extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            PebbleIcon(spec.icon, color: color, size: 24, filled: selected),
+            icon,
             const SizedBox(height: 3),
             Text(spec.label.tr,
                 style: TextStyle(
@@ -107,6 +150,34 @@ class _TabButton extends StatelessWidget {
           ],
         ),
       ),
+    );
+  }
+}
+
+/// Red unread-count pill shown on the Chats tab icon.
+class _Badge extends StatelessWidget {
+  const _Badge({required this.count});
+  final int count;
+
+  @override
+  Widget build(BuildContext context) {
+    final label = count > 99 ? '99+' : '$count';
+    return Container(
+      constraints: const BoxConstraints(minWidth: 16),
+      height: 16,
+      padding: const EdgeInsets.symmetric(horizontal: 4),
+      decoration: BoxDecoration(
+        color: const Color(0xFFFF3B30),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: AppTheme.bg, width: 1.5),
+      ),
+      alignment: Alignment.center,
+      child: Text(label,
+          style: const TextStyle(
+              color: Colors.white,
+              fontSize: 9.5,
+              fontWeight: FontWeight.w700,
+              height: 1)),
     );
   }
 }

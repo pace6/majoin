@@ -76,6 +76,8 @@ const Map<String, Map<String, String>> _bundles = {
     'register.create': 'สร้างบัญชี',
     'register.passwordTooShort': 'รหัสผ่านต้องอย่างน้อย 8 ตัว',
     'register.passwordMismatch': 'รหัสผ่านไม่ตรงกัน',
+    'register.usernameTaken': 'ชื่อผู้ใช้นี้ถูกใช้แล้ว',
+    'register.usernameInvalid': 'ชื่อผู้ใช้ไม่ถูกต้อง',
 
     // Tabs
     'tab.home': 'หน้าหลัก',
@@ -336,6 +338,8 @@ const Map<String, Map<String, String>> _bundles = {
     'register.create': 'Create account',
     'register.passwordTooShort': 'Password must be at least 8 characters',
     'register.passwordMismatch': 'Passwords do not match',
+    'register.usernameTaken': 'Username already taken',
+    'register.usernameInvalid': 'Invalid username',
 
     'tab.home': 'Home',
     'tab.chats': 'Chats',

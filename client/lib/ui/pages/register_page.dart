@@ -53,7 +53,10 @@ class _RegisterPageState extends State<RegisterPage> {
                         crossAxisAlignment: CrossAxisAlignment.stretch,
                         children: [
                           _field(_user, 'login.username'.tr,
-                              icon: PIcon.person),
+                              icon: PIcon.person,
+                              onChanged: ctrl.onUsernameChanged,
+                              suffix: _usernameIndicator(ctrl.usernameState),
+                              errorText: _usernameError(ctrl.usernameState)),
                           const SizedBox(height: 12),
                           _field(_pass, 'login.password'.tr,
                               icon: PIcon.lock, obscure: true),
@@ -81,7 +84,15 @@ class _RegisterPageState extends State<RegisterPage> {
                                   borderRadius: BorderRadius.circular(24),
                                 ),
                               ),
-                              onPressed: ctrl.busy ? null : _submit,
+                              onPressed: (ctrl.busy ||
+                                      ctrl.usernameState ==
+                                          UsernameState.checking ||
+                                      ctrl.usernameState ==
+                                          UsernameState.taken ||
+                                      ctrl.usernameState ==
+                                          UsernameState.invalid)
+                                  ? null
+                                  : _submit,
                               child: ctrl.busy
                                   ? const SizedBox(
                                       height: 20,
@@ -147,13 +158,20 @@ class _RegisterPageState extends State<RegisterPage> {
   }
 
   Widget _field(TextEditingController c, String label,
-      {PIcon? icon, bool obscure = false}) {
+      {PIcon? icon,
+      bool obscure = false,
+      ValueChanged<String>? onChanged,
+      Widget? suffix,
+      String? errorText}) {
     return TextField(
       controller: c,
       obscureText: obscure,
+      onChanged: onChanged,
       decoration: InputDecoration(
         labelText: label,
         prefixIcon: icon == null ? null : PebbleIcon(icon, size: 20),
+        suffixIcon: suffix,
+        errorText: errorText,
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
         ),
@@ -163,4 +181,28 @@ class _RegisterPageState extends State<RegisterPage> {
       ),
     );
   }
+
+  /// Trailing icon for the username field — reflects the live check.
+  Widget? _usernameIndicator(UsernameState s) => switch (s) {
+        UsernameState.checking => const Padding(
+            padding: EdgeInsets.all(12),
+            child: SizedBox(
+              width: 16,
+              height: 16,
+              child: CircularProgressIndicator(strokeWidth: 2),
+            ),
+          ),
+        UsernameState.available =>
+          const Icon(Icons.check_circle, color: AppTheme.lineGreen),
+        UsernameState.taken ||
+        UsernameState.invalid =>
+          const Icon(Icons.error_outline, color: Colors.red),
+        _ => null,
+      };
+
+  String? _usernameError(UsernameState s) => switch (s) {
+        UsernameState.taken => 'register.usernameTaken'.tr,
+        UsernameState.invalid => 'register.usernameInvalid'.tr,
+        _ => null,
+      };
 }
