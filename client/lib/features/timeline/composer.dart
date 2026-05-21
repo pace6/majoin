@@ -13,7 +13,7 @@ import 'timeline_state.dart';
 import 'voice_recorder.dart';
 
 /// Which inline tray is open above the composer input.
-enum _Tray { none, attach, sticker }
+enum _Tray { none, attach, sticker, voice }
 
 class Composer extends StatefulWidget {
   const Composer({super.key, required this.room, required this.ui});
@@ -28,7 +28,6 @@ class _ComposerState extends State<Composer> {
   final _ctl = TextEditingController();
   final _focus = FocusNode();
   bool _canSend = false;
-  bool _recording = false;
   _Tray _tray = _Tray.none;
 
   // Typing notification: refreshed every [_typingRefresh] while text present,
@@ -243,15 +242,6 @@ class _ComposerState extends State<Composer> {
   Widget build(BuildContext context) {
     final reply = widget.ui.replyTo;
     final editTarget = widget.ui.editTarget;
-    if (_recording) {
-      return SafeArea(
-        top: false,
-        child: VoiceRecorderBar(
-          room: widget.room,
-          onDone: () => setState(() => _recording = false),
-        ),
-      );
-    }
     return SafeArea(
       top: false,
       child: Container(
@@ -274,7 +264,12 @@ class _ComposerState extends State<Composer> {
             if (_tray == _Tray.attach)
               _AttachTray(onPick: _onAttachPick)
             else if (_tray == _Tray.sticker)
-              PebbleStickerPanel(onPick: _sendPebbleSticker),
+              PebbleStickerPanel(onPick: _sendPebbleSticker)
+            else if (_tray == _Tray.voice)
+              VoiceTray(
+                room: widget.room,
+                onSent: () => setState(() => _tray = _Tray.none),
+              ),
             Padding(
               padding: const EdgeInsets.fromLTRB(10, 6, 10, 6),
               child: Row(
@@ -364,9 +359,14 @@ class _ComposerState extends State<Composer> {
                         )
                       : _CircleButton(
                           icon: PIcon.mic,
-                          bg: const Color(0x0D000000),
-                          fg: AppTheme.subtleText,
-                          onTap: () => setState(() => _recording = true),
+                          bg: _tray == _Tray.voice
+                              ? AppTheme.accent
+                              : const Color(0x0D000000),
+                          fg: _tray == _Tray.voice
+                              ? Colors.white
+                              : AppTheme.subtleText,
+                          onTap: () => setState(() => _tray =
+                              _tray == _Tray.voice ? _Tray.none : _Tray.voice),
                         ),
                 ],
               ),
