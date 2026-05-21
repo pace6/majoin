@@ -13,26 +13,45 @@ from claude_agent_sdk import (
     tool,
 )
 
-from weather import CITY, fetch_weather
+from weather import CITY, LAT, LON, fetch_weather, geocode
 
 log = logging.getLogger("weather-bot")
 
 _SYSTEM = (
     "You are Majoin's friendly weather bot. Keep replies short and warm. "
     "When the user asks anything about the weather, call the get_weather "
-    "tool — never invent numbers. Reply in the user's language (Thai or "
-    "English). For chit-chat unrelated to weather, answer briefly and, if "
-    "natural, offer to share the forecast."
+    "tool — never invent numbers. Pass the city the user names; if they "
+    "name none, leave location empty (defaults to Bangkok). Reply in the "
+    "user's language (Thai or English). For chit-chat unrelated to weather, "
+    "answer briefly and, if natural, offer to share the forecast."
 )
 
 
-@tool("get_weather", "Get the current weather and today's forecast for Bangkok", {})
+@tool(
+    "get_weather",
+    "Get the current weather and today's forecast for a city. "
+    "Pass the city name in 'location'; leave it empty for Bangkok.",
+    {"location": str},
+)
 async def _get_weather(args):
-    data = await fetch_weather()
+    place = (args.get("location") or "").strip()
+    if place:
+        geo = await geocode(place)
+        if geo is None:
+            return {
+                "content": [
+                    {"type": "text", "text": f"Couldn't find a place called '{place}'."}
+                ]
+            }
+        lat, lon, name = geo
+    else:
+        lat, lon, name = LAT, LON, CITY
+
+    data = await fetch_weather(lat, lon)
     cur = data["current"]
     daily = data["daily"]
     text = (
-        f"{CITY}: {round(cur['temperature_2m'])}°C, "
+        f"{name}: {round(cur['temperature_2m'])}°C, "
         f"humidity {round(cur['relative_humidity_2m'])}%, "
         f"wind {round(cur['wind_speed_10m'])} km/h, "
         f"high {round(daily['temperature_2m_max'][0])}°C / "

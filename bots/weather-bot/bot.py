@@ -88,16 +88,28 @@ class WeatherBot:
         text = (event.body or "").strip()
         if not text:
             return
+        # Keep the "typing…" indicator alive for the whole Claude call —
+        # a single typing notice expires, so re-assert it on a timer.
+        typing = asyncio.create_task(self._keep_typing(room.room_id))
         try:
-            await self.client.room_typing(room.room_id, True, timeout=30000)
             reply = await ask_claude(text)
         except Exception as exc:  # noqa: BLE001 - demo bot, degrade gracefully
             log.warning("claude reply failed: %s", exc)
             reply = "ขออภัย ตอนนี้ตอบไม่ได้ ลองใหม่อีกครั้งนะ 🌧️"
         finally:
+            typing.cancel()
             await self.client.room_typing(room.room_id, False)
         await self._send_text(room.room_id, reply or "🤔")
         log.info("replied in %s", room.room_id)
+
+    async def _keep_typing(self, room_id: str) -> None:
+        """Re-send the typing indicator every 15s until cancelled."""
+        try:
+            while True:
+                await self.client.room_typing(room_id, True, timeout=20000)
+                await asyncio.sleep(15)
+        except asyncio.CancelledError:
+            pass
 
     async def _direct_room(self, user_id: str) -> str | None:
         """Reuse an existing 1:1 room with the user, or create one."""

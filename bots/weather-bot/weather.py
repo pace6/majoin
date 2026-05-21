@@ -35,14 +35,14 @@ _WMO = {
 }
 
 
-async def fetch_weather() -> dict:
-    """Return the raw open-meteo forecast payload for Bangkok."""
+async def fetch_weather(lat: float = LAT, lon: float = LON) -> dict:
+    """Return the raw open-meteo forecast payload. Defaults to Bangkok."""
     params = {
-        "latitude": LAT,
-        "longitude": LON,
+        "latitude": lat,
+        "longitude": lon,
         "current": "temperature_2m,relative_humidity_2m,weather_code,wind_speed_10m",
         "daily": "weather_code,temperature_2m_max,temperature_2m_min",
-        "timezone": "Asia/Bangkok",
+        "timezone": "auto",
         "forecast_days": 1,
     }
     async with aiohttp.ClientSession() as session:
@@ -53,6 +53,26 @@ async def fetch_weather() -> dict:
         ) as resp:
             resp.raise_for_status()
             return await resp.json()
+
+
+async def geocode(name: str) -> tuple[float, float, str] | None:
+    """Resolve a city name to (lat, lon, "City, Country"), or None."""
+    async with aiohttp.ClientSession() as session:
+        async with session.get(
+            "https://geocoding-api.open-meteo.com/v1/search",
+            params={"name": name, "count": 1, "language": "en", "format": "json"},
+            timeout=aiohttp.ClientTimeout(total=10),
+        ) as resp:
+            resp.raise_for_status()
+            data = await resp.json()
+    results = data.get("results")
+    if not results:
+        return None
+    top = results[0]
+    label = top["name"]
+    if top.get("country"):
+        label += f", {top['country']}"
+    return top["latitude"], top["longitude"], label
 
 
 def _text(text, **kw):
