@@ -130,6 +130,9 @@ class _RoomTile extends StatefulWidget {
 
 class _RoomTileState extends State<_RoomTile> {
   bool _joining = false;
+  // Last non-empty preview — kept so a transient null lastEvent (the SDK
+  // briefly clears it while refreshing) doesn't blank the row.
+  String _cachedPreview = '';
 
   Future<void> _accept() async {
     setState(() => _joining = true);
@@ -157,6 +160,12 @@ class _RoomTileState extends State<_RoomTile> {
             ? ''
             : _lastPreview(last);
     if (isMine && !invited && preview.isNotEmpty) preview = '✓ $preview';
+    // Hold the last known preview through a transient empty refresh.
+    if (preview.isNotEmpty) {
+      _cachedPreview = preview;
+    } else {
+      preview = _cachedPreview;
+    }
 
     final ts = r.lastEvent?.originServerTs;
     final timeLabel = ts == null ? '' : _formatTime(ts);
