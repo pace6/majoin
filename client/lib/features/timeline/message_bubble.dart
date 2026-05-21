@@ -91,8 +91,8 @@ class MessageBubble extends StatelessWidget {
 
     bubble = GestureDetector(
       onLongPress: onLongPress,
-      // Tap a message to see who has read it.
-      onTap: () => showReadReceiptsSheet(context, event),
+      // Tap a message to see who has read it — groups only (1:1 has ✓✓).
+      onTap: isGroup ? () => showReadReceiptsSheet(context, event) : null,
       child: bubble,
     );
 
