@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:io';
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:image_picker/image_picker.dart';
@@ -117,17 +118,26 @@ class _ComposerState extends State<Composer> {
     await widget.room.sendTextEvent(text, inReplyTo: reply);
   }
 
-  /// Handle a tap on an attach-tray tile.
-  Future<void> _onAttachPick(String kind) async {
+  /// Pick a file and send it.
+  Future<void> _pickAndSendFile() async {
     setState(() => _tray = _Tray.none);
-    switch (kind) {
-      case 'camera':
-        await _openCamera();
-      case 'photo':
-        await _pickAndSendPhoto(ImageSource.gallery);
-      case 'video':
-        await _pickAndSendVideo(ImageSource.gallery);
+    final FilePickerResult? res;
+    try {
+      res = await FilePicker.platform.pickFiles(withData: true);
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('${'pickerError'.tr}: $e')),
+        );
+      }
+      return;
     }
+    if (res == null || res.files.isEmpty) return;
+    final f = res.files.single;
+    final bytes = f.bytes ??
+        (f.path != null ? await File(f.path!).readAsBytes() : null);
+    if (bytes == null) return;
+    await widget.room.sendFileEvent(MatrixFile(bytes: bytes, name: f.name));
   }
 
   /// Camera tile — open the in-app LINE-style camera (tap = photo,
@@ -215,29 +225,6 @@ class _ComposerState extends State<Composer> {
     }));
   }
 
-  Future<void> _pickAndSendVideo(ImageSource source) async {
-    final picker = ImagePicker();
-    final XFile? x;
-    try {
-      x = await picker.pickVideo(
-        source: source,
-        maxDuration: const Duration(minutes: 5),
-      );
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('${'pickerError'.tr}: $e')),
-        );
-      }
-      return;
-    }
-    if (x == null) return;
-    final bytes = await File(x.path).readAsBytes();
-    await widget.room.sendFileEvent(
-      MatrixVideoFile(bytes: bytes, name: x.name),
-    );
-  }
-
   /// Plain icon button for the expanded voice-mode composer row.
   Widget _iconBtn(PIcon icon, VoidCallback onTap) => IconButton(
         icon: PebbleIcon(icon, size: 24, color: AppTheme.subtleText),
@@ -321,7 +308,7 @@ class _ComposerState extends State<Composer> {
               ),
             // Inline trays slide in above the input row.
             if (_tray == _Tray.attach)
-              _AttachTray(onPick: _onAttachPick)
+              _AttachTray(onFile: _pickAndSendFile)
             else if (_tray == _Tray.sticker)
               PebbleStickerPanel(onPick: _sendPebbleSticker)
             else if (_tray == _Tray.voice)
@@ -458,63 +445,78 @@ class _ReplyPreview extends StatelessWidget {
   }
 }
 
-/// Inline attach tray — camera / photo / video / audio tiles.
+/// Inline attach tray — LINE-style grid. Only File is wired up; the rest
+/// are placeholders shown disabled.
 class _AttachTray extends StatelessWidget {
-  const _AttachTray({required this.onPick});
-  final void Function(String kind) onPick;
-
-  // Voice messages have the dedicated mic button in the composer, so the
-  // tray is just camera / photo / video.
-  static const _items = <(String, PIcon, Color, String)>[
-    ('camera', PIcon.camera, Color(0xFF22B07D), 'attach.camera'),
-    ('photo', PIcon.image, Color(0xFF3A6FF0), 'attach.photo'),
-    ('video', PIcon.film, Color(0xFFE86A5C), 'attach.video'),
-  ];
+  const _AttachTray({required this.onFile});
+  final VoidCallback onFile;
 
   @override
   Widget build(BuildContext context) {
+    final items = <(IconData, String, VoidCallback?)>[
+      (Icons.insert_drive_file_outlined, 'attach.file'.tr, onFile),
+      (Icons.person_outline, 'attach.contact'.tr, null),
+      (Icons.location_on_outlined, 'attach.location'.tr, null),
+      (Icons.card_giftcard, 'attach.gift'.tr, null),
+      (Icons.event_outlined, 'attach.schedule'.tr, null),
+    ];
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.fromLTRB(16, 10, 16, 14),
+      height: 268,
+      padding: const EdgeInsets.fromLTRB(8, 16, 8, 16),
       decoration: const BoxDecoration(
         color: Color(0x06000000),
         border: Border(
             top: BorderSide(color: AppTheme.dividerColor, width: 0.5)),
       ),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceAround,
+      child: GridView.count(
+        crossAxisCount: 4,
+        childAspectRatio: 0.9,
+        physics: const NeverScrollableScrollPhysics(),
         children: [
-          for (final (kind, icon, tint, label) in _items)
-            InkWell(
-              onTap: () => onPick(kind),
-              borderRadius: BorderRadius.circular(16),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Container(
-                    width: 54,
-                    height: 54,
-                    decoration: BoxDecoration(
-                      color: tint,
-                      borderRadius: BorderRadius.circular(16),
-                      boxShadow: const [
-                        BoxShadow(
-                            color: Color(0x14000000),
-                            blurRadius: 10,
-                            offset: Offset(0, 4)),
-                      ],
-                    ),
-                    child: PebbleIcon(icon, size: 22, color: Colors.white),
-                  ),
-                  const SizedBox(height: 6),
-                  Text(label.tr,
-                      style: const TextStyle(
-                          fontSize: 12,
-                          fontWeight: FontWeight.w500,
-                          color: AppTheme.ink)),
-                ],
-              ),
+          for (final (icon, label, onTap) in items)
+            _AttachItem(icon: icon, label: label, onTap: onTap),
+        ],
+      ),
+    );
+  }
+}
+
+class _AttachItem extends StatelessWidget {
+  const _AttachItem({required this.icon, required this.label, this.onTap});
+  final IconData icon;
+  final String label;
+  final VoidCallback? onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final enabled = onTap != null;
+    final fg = enabled ? AppTheme.ink : const Color(0x40000000);
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(16),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Container(
+            width: 54,
+            height: 54,
+            decoration: BoxDecoration(
+              border: Border.all(
+                  color: enabled
+                      ? const Color(0x33000000)
+                      : const Color(0x14000000),
+                  width: 1.6),
+              borderRadius: BorderRadius.circular(14),
             ),
+            child: Icon(icon, size: 24, color: fg),
+          ),
+          const SizedBox(height: 7),
+          Text(label,
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                  fontSize: 11.5, fontWeight: FontWeight.w500, color: fg)),
         ],
       ),
     );
