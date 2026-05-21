@@ -10,7 +10,6 @@ import '../../core/util/mxid.dart';
 import '../../ui/theme/app_theme.dart';
 import '../../ui/widgets/pebble_icon.dart';
 import '../../ui/widgets/mxc_image.dart';
-import '../stickers/sticker_store.dart';
 
 /// Pebble-style Home: greeting strip, friends row, quick actions, groups card.
 class HomeTab extends StatefulWidget {
@@ -134,38 +133,6 @@ class _HomeTabState extends State<HomeTab> {
               ),
             ),
 
-            // Quick actions.
-            Padding(
-              padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
-              child: Row(
-                children: [
-                  _quickAction(
-                    icon: PIcon.qr,
-                    label: 'home.qrCode'.tr.replaceAll('\n', ' '),
-                    tint: const Color(0xFF3A6FF0),
-                    onTap: () => _showQr(mxid),
-                  ),
-                  const SizedBox(width: 10),
-                  _quickAction(
-                    icon: PIcon.plus,
-                    label: 'home.addFriend'.tr.replaceAll('\n', ' '),
-                    tint: AppTheme.accent,
-                    onTap: _addFriends,
-                  ),
-                  const SizedBox(width: 10),
-                  _quickAction(
-                    icon: PIcon.smile,
-                    label: 'home.stickerShop'.tr.replaceAll('\n', ' '),
-                    tint: const Color(0xFFE86A5C),
-                    onTap: () => Navigator.of(context).push(
-                      MaterialPageRoute(
-                          builder: (_) => const StickerStorePage()),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-
             // Groups.
             _sectionLabel('home.groups'.tr),
             Padding(
@@ -268,48 +235,6 @@ class _HomeTabState extends State<HomeTab> {
     );
   }
 
-  Widget _quickAction({
-    required PIcon icon,
-    required String label,
-    required Color tint,
-    required VoidCallback onTap,
-  }) {
-    return Expanded(
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(16),
-        child: Container(
-          padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 8),
-          decoration: BoxDecoration(
-            color: AppTheme.card,
-            borderRadius: BorderRadius.circular(16),
-          ),
-          child: Column(
-            children: [
-              Container(
-                width: 38,
-                height: 38,
-                decoration: BoxDecoration(
-                  color: tint,
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: PebbleIcon(icon, size: 20, color: Colors.white),
-              ),
-              const SizedBox(height: 7),
-              Text(label,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                      fontSize: 11.5,
-                      fontWeight: FontWeight.w600,
-                      color: AppTheme.ink)),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
   Widget _groupRow(Room r, bool last) {
     final name = roomTitle(r);
     final members = r.summary.mJoinedMemberCount ?? 0;
@@ -358,23 +283,6 @@ class _HomeTabState extends State<HomeTab> {
               indent: 66,
               color: AppTheme.dividerColor),
       ],
-    );
-  }
-
-  void _showQr(String mxid) {
-    showDialog<void>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: Text('home.qrCode'.tr.replaceAll('\n', ' ')),
-        content: Text('@${localpartOf(mxid)}',
-            style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(ctx).pop(),
-            child: Text('common.ok'.tr),
-          ),
-        ],
-      ),
     );
   }
 }

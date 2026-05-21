@@ -7,7 +7,6 @@ import '../../core/i18n/strings.dart';
 import '../../core/util/avatar.dart';
 import '../../core/util/mxid.dart';
 import '../../ui/theme/app_theme.dart';
-import '../../ui/widgets/pebble_icon.dart';
 import '../../ui/widgets/mxc_image.dart';
 
 /// Pebble-style settings: grouped cards with rounded icon tiles.
@@ -98,7 +97,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                           border:
                               Border.all(color: AppTheme.card, width: 1.5),
                         ),
-                        child: const PebbleIcon(PIcon.camera,
+                        child: const Icon(Icons.camera_alt,
                             size: 9, color: Colors.white),
                       ),
                     ),
@@ -128,13 +127,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
         _section('settings.account'.tr, [
           _row(
-            icon: PIcon.person,
+            icon: Icons.person_outline,
             iconBg: const Color(0xFF3A6FF0),
             label: 'common.account'.tr,
             value: '@${localpartOf(mxid)}',
           ),
           _row(
-            icon: PIcon.lock,
+            icon: Icons.shield_outlined,
             iconBg: AppTheme.accentDeep,
             label: 'security.title'.tr,
             onTap: () => context.push('/security'),
@@ -148,7 +147,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
         _section(null, [
           _row(
-            icon: PIcon.logout,
+            icon: Icons.logout,
             iconBg: const Color(0xFFFF3B30),
             label: 'common.signOut'.tr,
             danger: true,
@@ -197,7 +196,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
   }
 
   Widget _row({
-    required PIcon icon,
+    required IconData icon,
     required String label,
     Color? iconBg,
     String? value,
@@ -222,7 +221,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     color: iconBg ?? const Color(0x0D000000),
                     borderRadius: BorderRadius.circular(8),
                   ),
-                  child: PebbleIcon(icon,
+                  child: Icon(icon,
                       size: 17,
                       color: iconBg != null
                           ? Colors.white
@@ -247,8 +246,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   ),
                 ?trailing,
                 if (chevron && trailing == null)
-                  const PebbleIcon(PIcon.chevron,
-                      size: 18, color: AppTheme.subtleText),
+                  const Icon(Icons.chevron_right,
+                      size: 20, color: AppTheme.subtleText),
               ],
             ),
           ),
@@ -262,7 +261,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
   Widget _langRow(LocaleController lc) {
     return _row(
-      icon: PIcon.globe,
+      icon: Icons.language,
       iconBg: const Color(0xFF34C759),
       label: 'common.language'.tr,
       chevron: false,

@@ -9,7 +9,6 @@ import '../../core/util/mxid.dart';
 import '../../ui/theme/app_theme.dart';
 import '../../ui/widgets/pebble_icon.dart';
 import '../../ui/widgets/mxc_image.dart';
-import '../../core/util/room_ext.dart';
 
 /// Pebble-style profile: accent hero banner, avatar, stats, action cards.
 class ProfileScreen extends StatefulWidget {
@@ -49,10 +48,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
         ? _profile!.displayName!
         : localpartOf(mxid);
     final avatarMxc = _profile?.avatarUrl?.toString();
-
-    final joined = _c.rooms.where((r) => r.membership == Membership.join);
-    final dms = joined.where(isOneToOne).length;
-    final groups = joined.where((r) => !isOneToOne(r)).length;
 
     return ListView(
       padding: const EdgeInsets.fromLTRB(16, 8, 16, 110),
@@ -138,17 +133,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
           offset: const Offset(0, -28),
           child: Column(
             children: [
-              // Stats.
-              Row(
-                children: [
-                  _stat('$dms', 'profile.statFriends'.tr),
-                  const SizedBox(width: 10),
-                  _stat('$groups', 'profile.statGroups'.tr),
-                  const SizedBox(width: 10),
-                  _stat('${dms + groups}', 'profile.statChats'.tr),
-                ],
-              ),
-              const SizedBox(height: 14),
               // Action cards.
               Row(
                 children: [
@@ -175,33 +159,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
           ),
         ),
       ],
-    );
-  }
-
-  Widget _stat(String value, String label) {
-    return Expanded(
-      child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 14),
-        decoration: BoxDecoration(
-          color: AppTheme.card,
-          borderRadius: BorderRadius.circular(18),
-        ),
-        child: Column(
-          children: [
-            Text(value,
-                style: const TextStyle(
-                    fontSize: 22,
-                    fontWeight: FontWeight.w700,
-                    color: AppTheme.ink)),
-            const SizedBox(height: 2),
-            Text(label,
-                style: const TextStyle(
-                    fontSize: 11.5,
-                    fontWeight: FontWeight.w500,
-                    color: AppTheme.subtleText)),
-          ],
-        ),
-      ),
     );
   }
 
