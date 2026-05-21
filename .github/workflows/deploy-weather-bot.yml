@@ -1,0 +1,52 @@
+name: Deploy weather bot
+
+# Monorepo: only the bots/weather-bot slice is deployed. The VPS holds a
+# flattened copy at ~/apps/majoin-weather-bot-prod (not a git checkout), so
+# the workflow rsyncs the slice over SSH, then runs deploy/deploy.sh on the
+# box. BOT_DIR is relative to the deploy user's home.
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'bots/weather-bot/**'
+      - '.github/workflows/deploy-weather-bot.yml'
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-weather-bot
+  cancel-in-progress: false
+
+env:
+  # Relative to the deploy user's home (rsync/ssh resolve it there).
+  BOT_DIR: apps/majoin-weather-bot-prod
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up SSH
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.VPS_SSH_KEY }}" > ~/.ssh/id_ed25519
+          chmod 600 ~/.ssh/id_ed25519
+          ssh-keyscan -H "${{ secrets.VPS_HOST }}" >> ~/.ssh/known_hosts
+
+      - name: Rsync bot to VPS
+        run: |
+          rsync -az --delete \
+            --exclude '.venv' \
+            --exclude '__pycache__' \
+            --exclude '*.pyc' \
+            --exclude '.env' \
+            -e "ssh -i ~/.ssh/id_ed25519" \
+            bots/weather-bot/ \
+            "${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }}:${{ env.BOT_DIR }}/"
+
+      - name: Run deploy script
+        run: |
+          ssh -i ~/.ssh/id_ed25519 \
+            "${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }}" \
+            "DEPLOY_SHA='${{ github.sha }}' bash '${{ env.BOT_DIR }}/deploy/deploy.sh'"

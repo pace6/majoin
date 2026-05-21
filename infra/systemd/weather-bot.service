@@ -1,0 +1,19 @@
+[Unit]
+Description=Majoin weather bot
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+# Same user as the CI deploy/SSH user (VPS_USER) — owns the code and .venv.
+# %h expands to that user's home, so the paths resolve to
+# ~/apps/majoin-weather-bot-prod.
+User=REPLACE_WITH_DEPLOY_USER
+WorkingDirectory=%h/apps/majoin-weather-bot-prod
+EnvironmentFile=%h/apps/majoin-weather-bot-prod/.env
+ExecStart=%h/apps/majoin-weather-bot-prod/.venv/bin/python bot.py
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

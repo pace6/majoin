@@ -27,3 +27,7 @@ tools/**/__pycache__/
 # Secrets — real env files never committed; .env.example is the template.
 .env
 !.env.example
+
+# Python bytecode (bots / infra modules)
+bots/**/__pycache__/
+infra/**/__pycache__/
