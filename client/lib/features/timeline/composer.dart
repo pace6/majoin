@@ -333,60 +333,40 @@ class _ComposerState extends State<Composer> {
               padding: const EdgeInsets.fromLTRB(10, 6, 10, 6),
               child: Row(
                 crossAxisAlignment: CrossAxisAlignment.center,
-                children: inVoice
-                    ? [
-                        // Voice mode: expanded attach icons + close.
-                        _iconBtn(PIcon.plus,
-                            () => setState(() => _tray = _Tray.attach)),
-                        _iconBtn(PIcon.camera, _openCamera),
-                        _iconBtn(PIcon.image,
-                            () => _pickAndSendPhoto(ImageSource.gallery)),
-                        const SizedBox(width: 4),
-                        Expanded(child: inputPill),
-                        const SizedBox(width: 8),
-                        _CircleButton(
-                          icon: PIcon.close,
-                          bg: AppTheme.accent,
-                          fg: Colors.white,
-                          onTap: () =>
-                              setState(() => _tray = _Tray.none),
-                        ),
-                      ]
-                    : [
-                        _CircleButton(
-                          icon: _tray == _Tray.attach
-                              ? PIcon.close
-                              : PIcon.plus,
-                          bg: _tray == _Tray.attach
-                              ? AppTheme.accent
-                              : const Color(0x0D000000),
-                          fg: _tray == _Tray.attach
-                              ? Colors.white
-                              : AppTheme.subtleText,
-                          onTap: () => setState(() => _tray =
-                              _tray == _Tray.attach
-                                  ? _Tray.none
-                                  : _Tray.attach),
-                          tooltip: 'composer.attach'.tr,
-                        ),
-                        const SizedBox(width: 8),
-                        Expanded(child: inputPill),
-                        const SizedBox(width: 8),
-                        _canSend
-                            ? _CircleButton(
-                                icon: PIcon.send,
-                                bg: AppTheme.accent,
-                                fg: Colors.white,
-                                onTap: _sendText,
-                              )
-                            : _CircleButton(
-                                icon: PIcon.mic,
-                                bg: const Color(0x0D000000),
-                                fg: AppTheme.subtleText,
-                                onTap: () => setState(
-                                    () => _tray = _Tray.voice),
-                              ),
-                      ],
+                children: [
+                  // Always-visible quick attach icons (LINE-style).
+                  _iconBtn(PIcon.plus,
+                      () => setState(() => _tray =
+                          _tray == _Tray.attach ? _Tray.none : _Tray.attach)),
+                  _iconBtn(PIcon.camera, _openCamera),
+                  _iconBtn(PIcon.image,
+                      () => _pickAndSendPhoto(ImageSource.gallery)),
+                  const SizedBox(width: 4),
+                  Expanded(child: inputPill),
+                  const SizedBox(width: 8),
+                  // Close (voice mode), send (has text) or mic.
+                  if (inVoice)
+                    _CircleButton(
+                      icon: PIcon.close,
+                      bg: AppTheme.accent,
+                      fg: Colors.white,
+                      onTap: () => setState(() => _tray = _Tray.none),
+                    )
+                  else if (_canSend)
+                    _CircleButton(
+                      icon: PIcon.send,
+                      bg: AppTheme.accent,
+                      fg: Colors.white,
+                      onTap: _sendText,
+                    )
+                  else
+                    _CircleButton(
+                      icon: PIcon.mic,
+                      bg: const Color(0x0D000000),
+                      fg: AppTheme.subtleText,
+                      onTap: () => setState(() => _tray = _Tray.voice),
+                    ),
+                ],
               ),
             ),
           ],
@@ -548,17 +528,15 @@ class _CircleButton extends StatelessWidget {
     required this.bg,
     required this.fg,
     required this.onTap,
-    this.tooltip,
   });
   final PIcon icon;
   final Color bg;
   final Color fg;
   final VoidCallback onTap;
-  final String? tooltip;
 
   @override
   Widget build(BuildContext context) {
-    final btn = InkWell(
+    return InkWell(
       onTap: onTap,
       borderRadius: BorderRadius.circular(20),
       child: Container(
@@ -569,6 +547,5 @@ class _CircleButton extends StatelessWidget {
         child: PebbleIcon(icon, size: 20, color: fg),
       ),
     );
-    return tooltip == null ? btn : Tooltip(message: tooltip!, child: btn);
   }
 }
