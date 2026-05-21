@@ -10,18 +10,18 @@ import '../../ui/widgets/mxc_image.dart';
 
 /// Preview text for a room's last event — labels non-text message kinds.
 String _lastPreview(Event e) {
-  if (e.type == 'm.sticker') return '💛 ${'msg.sticker'.tr}';
+  if (e.type == 'm.sticker') return 'msg.sticker'.tr;
   if (e.type == 'app.majoin.flex') return 'msg.flex'.tr;
-  if (e.type.startsWith('m.call.')) return '📞 ${'call.missed'.tr}';
+  if (e.type.startsWith('m.call.')) return 'call.missed'.tr;
   switch (e.messageType) {
     case MessageTypes.Image:
-      return '📷 ${'msg.image'.tr}';
+      return 'msg.image'.tr;
     case MessageTypes.Video:
-      return '📹 ${'msg.video'.tr}';
+      return 'msg.video'.tr;
     case MessageTypes.Audio:
-      return '🎙️ ${'msg.audio'.tr}';
+      return 'msg.audio'.tr;
     case MessageTypes.File:
-      return '📎 ${'msg.file'.tr}';
+      return 'msg.file'.tr;
     default:
       return e.body;
   }
