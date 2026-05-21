@@ -4,6 +4,10 @@ A Majoin demo bot. When a user registers, it requests friendship (a direct
 chat) and reports the weather — once on greeting, then every morning — as a
 **Majoin Flex message** (`app.majoin.flex`).
 
+Users can also **chat with it**: messages are routed through Claude (the
+Anthropic Agent SDK) with a `get_weather` tool, so the bot answers questions
+conversationally in Thai or English.
+
 ## How it works
 
 ```
@@ -19,6 +23,8 @@ Synapse  ──(on_user_registration)──►  majoin_register_hook module
                                        ▼
                               every 07:00 (Asia/Bangkok)
                               broadcast forecast Flex to all its chats
+
+user sends a message ──► Claude (Agent SDK) + get_weather tool ──► reply
 ```
 
 - Weather: [open-meteo.com](https://open-meteo.com) — free, no API key. Fixed
@@ -115,3 +121,4 @@ curl -X POST http://127.0.0.1:8470/hooks/new-user \
 | `HOOK_TOKEN` | Shared secret with the Synapse module (Bearer auth) |
 | `HOOK_PORT` | Webhook port (default `8470`) |
 | `MORNING_HOUR` | Broadcast hour, Asia/Bangkok 0-23 (default `7`) |
+| `ANTHROPIC_API_KEY` | Anthropic API key — powers conversational replies |

@@ -22,9 +22,11 @@ from nio import (
     InviteMemberEvent,
     LoginError,
     RoomCreateError,
+    RoomMessageText,
     RoomPreset,
 )
 
+from agent import ask_claude
 from weather import BANGKOK, fetch_weather, weather_flex
 
 logging.basicConfig(
@@ -53,6 +55,8 @@ class WeatherBot:
         self.hook_port = int(os.environ.get("HOOK_PORT", "8470"))
         self.morning_hour = int(os.environ.get("MORNING_HOUR", "7"))
         self.client = AsyncClient(self.homeserver, self.user_id)
+        # Ignore messages older than startup — avoids replaying history.
+        self._start_ms = 0
 
     # ---- Matrix helpers ----
 
@@ -64,13 +68,36 @@ class WeatherBot:
         log.info("logged in as %s", self.user_id)
         # Initial sync so self.client.rooms is populated before we broadcast.
         await self.client.sync(timeout=10000, full_state=True)
+        self._start_ms = int(datetime.now(BANGKOK).timestamp() * 1000)
         self.client.add_event_callback(self._on_invite, InviteMemberEvent)
+        self.client.add_event_callback(self._on_message, RoomMessageText)
 
     async def _on_invite(self, room, event) -> None:
         """Auto-join if someone invites the bot directly."""
         if event.state_key == self.user_id:
             await self.client.join(room.room_id)
             log.info("joined %s (invited)", room.room_id)
+
+    async def _on_message(self, room, event) -> None:
+        """Reply to a user message — routed through Claude (Agent SDK)."""
+        if event.sender == self.user_id:
+            return
+        # Skip history replayed on (re)sync.
+        if event.server_timestamp < self._start_ms:
+            return
+        text = (event.body or "").strip()
+        if not text:
+            return
+        try:
+            await self.client.room_typing(room.room_id, True, timeout=30000)
+            reply = await ask_claude(text)
+        except Exception as exc:  # noqa: BLE001 - demo bot, degrade gracefully
+            log.warning("claude reply failed: %s", exc)
+            reply = "ขออภัย ตอนนี้ตอบไม่ได้ ลองใหม่อีกครั้งนะ 🌧️"
+        finally:
+            await self.client.room_typing(room.room_id, False)
+        await self._send_text(room.room_id, reply or "🤔")
+        log.info("replied in %s", room.room_id)
 
     async def _direct_room(self, user_id: str) -> str | None:
         """Reuse an existing 1:1 room with the user, or create one."""

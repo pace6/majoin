@@ -1,0 +1,77 @@
+"""Conversational layer — routes user messages through Claude (Anthropic
+Agent SDK) with a custom weather tool.
+
+Needs ANTHROPIC_API_KEY in the environment.
+"""
+
+import logging
+
+from claude_agent_sdk import (
+    ClaudeAgentOptions,
+    ClaudeSDKClient,
+    create_sdk_mcp_server,
+    tool,
+)
+
+from weather import CITY, fetch_weather
+
+log = logging.getLogger("weather-bot")
+
+_SYSTEM = (
+    "You are Majoin's friendly weather bot. Keep replies short and warm. "
+    "When the user asks anything about the weather, call the get_weather "
+    "tool — never invent numbers. Reply in the user's language (Thai or "
+    "English). For chit-chat unrelated to weather, answer briefly and, if "
+    "natural, offer to share the forecast."
+)
+
+
+@tool("get_weather", "Get the current weather and today's forecast for Bangkok", {})
+async def _get_weather(args):
+    data = await fetch_weather()
+    cur = data["current"]
+    daily = data["daily"]
+    text = (
+        f"{CITY}: {round(cur['temperature_2m'])}°C, "
+        f"humidity {round(cur['relative_humidity_2m'])}%, "
+        f"wind {round(cur['wind_speed_10m'])} km/h, "
+        f"high {round(daily['temperature_2m_max'][0])}°C / "
+        f"low {round(daily['temperature_2m_min'][0])}°C"
+    )
+    return {"content": [{"type": "text", "text": text}]}
+
+
+_server = create_sdk_mcp_server(
+    name="weather", version="1.0.0", tools=[_get_weather]
+)
+
+
+def _extract_text(message) -> str:
+    """Pull plain text out of an Agent SDK message (duck-typed so it
+    survives minor SDK shape changes)."""
+    parts = []
+    content = getattr(message, "content", None)
+    if isinstance(content, list):
+        for block in content:
+            text = getattr(block, "text", None)
+            if isinstance(text, str):
+                parts.append(text)
+    return "".join(parts)
+
+
+async def ask_claude(message: str) -> str:
+    """Single-turn reply. Each call is a fresh conversation (no memory
+    across messages) — enough for a demo bot."""
+    options = ClaudeAgentOptions(
+        system_prompt=_SYSTEM,
+        mcp_servers={"weather": _server},
+        allowed_tools=["mcp__weather__get_weather"],
+    )
+    reply = ""
+    async with ClaudeSDKClient(options=options) as client:
+        await client.query(message)
+        async for msg in client.receive_response():
+            chunk = _extract_text(msg)
+            if chunk:
+                reply += chunk
+    return reply.strip()
