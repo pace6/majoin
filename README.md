@@ -1,4 +1,4 @@
-# majoin
+# Majoin
 
 LINE-style chat over [Matrix](https://matrix.org). Flutter client (Android,
 iOS, macOS, Windows, Linux) on a self-hosted Synapse homeserver.
@@ -9,9 +9,10 @@ iOS, macOS, Windows, Linux) on a self-hosted Synapse homeserver.
 majoin/
 ├── client/        Flutter app (the end-user chat client)
 ├── services/      Standalone backend APIs we write
-│   └── sticker-api/   FastAPI sticker store (catalog + admin)
+│   └── majoin/        FastAPI app API (stickers, user directory, custom endpoints)
 ├── appservices/   Matrix Application Services (registered AS — bridges, puppeting)
 ├── bots/          Simple Matrix bots (plain user-account bots)
+│   └── weather-bot/   weather reports + Claude chat (matrix-nio)
 ├── infra/         Matrix deploy + reverse proxy
 │   ├── synapse/       homeserver config + data
 │   ├── coturn/        TURN server config
@@ -29,9 +30,9 @@ majoin/
 | Dir | Definition | Examples |
 |-----|------------|----------|
 | `client/` | end-user application | Flutter app |
-| `services/` | standalone REST APIs, not tied to Matrix protocol | sticker-api |
+| `services/` | standalone REST APIs, not tied to Matrix protocol | majoin (stickers, user API, custom endpoints) |
 | `appservices/` | Matrix Application Services — registered, own a user namespace, can masquerade users | LINE↔Matrix bridge, puppeting |
-| `bots/` | bots that log in as a normal user and react | welcome-bot, broadcast-bot |
+| `bots/` | bots that log in as a normal user and react | weather-bot |
 | `infra/` | deploy config for the Matrix stack + reverse proxy | Synapse, coturn, sygnal, Caddy |
 | `tools/` | dev-time scripts, never deployed | asset generators |
 
@@ -45,7 +46,9 @@ bridges and puppeting.
 - Homeserver: `https://chat.tokens2.io` (Synapse, native install on VPS)
 - Reverse proxy: Caddy (`/_matrix/*`, `/api/stickers/*`)
 - TURN: coturn (native)
-- Sticker store: `services/sticker-api` (FastAPI, systemd, port 8410)
+- App API: `services/majoin` (FastAPI — sticker store + user directory, and
+  the home for new custom endpoints; systemd, port 8410)
+- Weather bot: `bots/weather-bot` (matrix-nio, systemd; demo bot)
 
 ### Infrastructure Architecture
 
@@ -63,10 +66,12 @@ graph TB
     classDef services fill:#FFB703,stroke:#000,stroke-width:1.5px,color:#333;
     classDef database fill:#06D6A0,stroke:#000,stroke-width:1.5px,color:#fff;
     classDef external fill:#7D8597,stroke:#000,stroke-dasharray: 5 5,stroke-width:1.5px,color:#fff;
+    classDef bot fill:#06C755,stroke:#000,stroke-width:1.5px,color:#fff;
+    classDef planned fill:#FFFFFF,stroke:#7D8597,stroke-dasharray: 6 4,stroke-width:1.5px,color:#333;
 
     %% Nodes
     subgraph Client ["Client Devices"]
-        App["majoin Client (Flutter)<br/>(Android, iOS, macOS, Windows, Linux)"]:::client
+        App["Majoin Client (Flutter)<br/>(Android, iOS, macOS, Windows, Linux)"]:::client
     end
 
     subgraph Internet ["Public Entrypoints (TLS Reverse Proxy)"]
@@ -79,10 +84,15 @@ graph TB
     end
 
     subgraph ApplicationStack ["Application Backend Services"]
-        Synapse["Synapse Matrix Homeserver<br/>(Python/Twisted, Port 8008)"]:::matrix
-        StickerAPI["FastAPI Sticker Store API<br/>(uv / python, Port 8410)"]:::services
+        Synapse["Synapse Matrix Homeserver<br/>(Python/Twisted, Port 8008)<br/>+ majoin_register_hook module"]:::matrix
+        StickerAPI["Majoin App API (FastAPI)<br/>stickers · user directory · custom<br/>(uv / python, Port 8410)"]:::services
         Sygnal["Sygnal Push Gateway<br/>(Python, Port 5000)"]:::services
         LKJWT["lk-jwt-service (LiveKit JWT Service)<br/>(Go, Port 8080)"]:::services
+    end
+
+    subgraph Integrations ["Bots & Application Services"]
+        WeatherBot["weather-bot<br/>(matrix-nio, Python, Port 8470)<br/>greets new users, daily forecast, Claude chat"]:::bot
+        Bridge["LINE&lt;-&gt;Matrix Bridge<br/>(appservice — TODO / example)"]:::planned
     end
 
     subgraph DataStorage ["Data Stores"]
@@ -92,6 +102,9 @@ graph TB
     subgraph ExternalServices ["External APIs / Services"]
         FCM["Firebase Cloud Messaging (FCM)<br/>Google Push Notifications"]:::external
         APNS["Apple Push Notification Service (APNs)"]:::external
+        OpenMeteo["open-meteo API<br/>(weather data, no key)"]:::external
+        Anthropic["Anthropic API<br/>(Claude Agent SDK)"]:::external
+        LineP["LINE Platform<br/>(bridged network)"]:::external
     end
 
     %% Flows
@@ -100,7 +113,7 @@ graph TB
     App ==>|"3. WebRTC Media (Group Calls)"| LiveKit
 
     Caddy ==>|"Proxy (/_matrix/* & .well-known/*)"| Synapse
-    Caddy ==>|"Proxy (/api/stickers/*)"| StickerAPI
+    Caddy ==>|"Proxy (/api/*)"| StickerAPI
     Caddy ==>|"Proxy (livekit.tokens2.io/)"| LiveKit
     Caddy ==>|"Proxy (livekit.tokens2.io/jwt)"| LKJWT
 
@@ -108,14 +121,25 @@ graph TB
     Synapse ==>|"Trigger Push Events"| Sygnal
     Synapse -.->|"TURN Authentication Secret"| Coturn
 
-    StickerAPI ==>|"Sticker Pack Metadata"| Postgres
+    StickerAPI ==>|"App data (packs, users)"| Postgres
     StickerAPI -->|"Upload Media Assets (mxc://)"| Synapse
+    StickerAPI -.->|"Verify caller token (/account/whoami)"| Synapse
 
     LKJWT ==>|"Exchange Matrix OpenID for User Verification"| Synapse
     LKJWT -.->|"Issues signed JWT tokens for"| LiveKit
 
     Sygnal ==>|Push Push Notifications| FCM
     Sygnal ==>|Push Push Notifications| APNS
+
+    %% Bot flows
+    WeatherBot ==>|"Matrix client API (login / sync / send)"| Synapse
+    Synapse -.->|"register hook: POST /hooks/new-user"| WeatherBot
+    WeatherBot ==>|"Forecast"| OpenMeteo
+    WeatherBot ==>|"Conversational replies"| Anthropic
+
+    %% Application service (planned)
+    Bridge -.->|"Appservice API (registered namespace)"| Synapse
+    Bridge -.->|"Bridged messages"| LineP
 ```
 </details>
 
@@ -154,9 +178,13 @@ sudo register_new_matrix_user -c /etc/matrix-synapse/homeserver.yaml \
 | Push — local notifications (all platforms) | done |
 | Push — FCM / APNs remote (background/killed) | wired; needs Firebase config |
 | Group call (LiveKit) | planned (Phase 2) |
+| Weather bot — Flex reports + Claude Agent SDK chat | demo |
+| LINE↔Matrix bridge (appservice) | TODO / example |
 
 ## Component docs
 
-- `services/sticker-api/README.md` — sticker store API deploy + pack upload
+- `services/majoin/README.md` — app API deploy + sticker pack upload
+- `docs/custom-api-auth.md` — protecting custom API endpoints with Matrix tokens
+- `bots/weather-bot/README.md` — weather bot setup, register hook, CD
 - `infra/scripts/` — Synapse bootstrap + user registration
 - `docs/push-setup.md` — FCM remote push setup (Firebase + sygnal)
