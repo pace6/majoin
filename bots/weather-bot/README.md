@@ -76,12 +76,13 @@ The VPS holds a flattened copy of this directory at `~/apps/majoin-weather-bot-p
 3. Install the systemd unit:
    ```sh
    # edit User= in the unit first
-   sudo cp infra/systemd/weather-bot.service /etc/systemd/system/
-   sudo systemctl daemon-reload && sudo systemctl enable --now weather-bot
+   sudo cp infra/systemd/majoin-weather-bot.service /etc/systemd/system/
+   sudo systemctl daemon-reload
+   sudo systemctl enable --now majoin-weather-bot
    ```
 4. Allow the deploy user to restart it without a password — in `sudoers`:
    ```
-   <deploy-user> ALL=(ALL) NOPASSWD: /usr/bin/systemctl restart weather-bot
+   <deploy-user> ALL=(ALL) NOPASSWD: /usr/bin/systemctl restart majoin-weather-bot
    ```
 5. Install the Synapse register hook (above) — not part of CD.
 

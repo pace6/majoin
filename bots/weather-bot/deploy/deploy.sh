@@ -12,13 +12,14 @@
 #   * the @weather account is registered;
 #   * ~/apps/majoin-weather-bot-prod/.env exists (not committed);
 #   * the weather-bot systemd unit is installed and enabled;
-#   * the deploy user has passwordless `sudo systemctl restart weather-bot`.
+#   * the deploy user has passwordless `sudo systemctl restart
+#     majoin-weather-bot`.
 #
 # Exit codes: 0 success, 1 the service failed to come back up.
 
 set -euo pipefail
 
-SERVICE_NAME="${SERVICE_NAME:-weather-bot}"
+SERVICE_NAME="${SERVICE_NAME:-majoin-weather-bot}"
 PROJECT_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$PROJECT_ROOT"
 
