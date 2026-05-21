@@ -180,11 +180,10 @@ class MessageBubble extends StatelessWidget {
       return const Text('[sticker]');
     }
     if (display.messageType == MessageTypes.Audio) {
-      final url = display.attachmentMxcUrl;
-      if (url != null) {
+      if (display.attachmentMxcUrl != null) {
         final dur = (display.content['info'] as Map?)?['duration'] as int?;
         return AudioMessagePlayer(
-          mxcUrl: url.toString(),
+          event: display,
           durationMs: dur,
           mine: _mine,
         );
@@ -192,35 +191,16 @@ class MessageBubble extends StatelessWidget {
       return const _UploadingBox(width: 200, height: 48);
     }
     if (display.messageType == MessageTypes.Video) {
-      final url = display.attachmentMxcUrl;
-      if (url != null) {
-        return VideoMessageTile(mxcUrl: url.toString());
+      if (display.attachmentMxcUrl != null) {
+        return VideoMessageTile(event: display);
       }
       return const _UploadingBox(width: 240, height: 160);
     }
     if (display.messageType == MessageTypes.Image) {
-      final url = display.attachmentMxcUrl;
-      return ClipRRect(
-        borderRadius: BorderRadius.circular(14),
-        child: url != null
-            ? MxcImage(
-                url: url.toString(),
-                width: 240,
-                fit: BoxFit.cover,
-              )
-            : Container(
-                width: 240,
-                height: 180,
-                color: const Color(0x22000000),
-                child: const Center(
-                  child: SizedBox(
-                    width: 22,
-                    height: 22,
-                    child: CircularProgressIndicator(strokeWidth: 2),
-                  ),
-                ),
-              ),
-      );
+      if (display.attachmentMxcUrl != null) {
+        return ChatImage(event: display);
+      }
+      return const _UploadingBox(width: 240, height: 180);
     }
     if (display.messageType == MessageTypes.File) {
       return _FileTile(event: display, mine: _mine);

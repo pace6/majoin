@@ -1,17 +1,22 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:just_audio/just_audio.dart';
+import 'package:matrix/matrix.dart';
 import 'package:video_player/video_player.dart';
-import '../../ui/widgets/mxc_image.dart';
+
+import '../../core/util/attachment.dart';
 
 /// Inline voice-message player — play/pause + progress + duration.
+/// Downloads + decrypts the attachment before playing (E2EE-safe).
 class AudioMessagePlayer extends StatefulWidget {
   const AudioMessagePlayer({
     super.key,
-    required this.mxcUrl,
+    required this.event,
     this.durationMs,
     required this.mine,
   });
-  final String mxcUrl;
+  final Event event;
   final int? durationMs;
   final bool mine;
 
@@ -22,6 +27,7 @@ class AudioMessagePlayer extends StatefulWidget {
 class _AudioMessagePlayerState extends State<AudioMessagePlayer> {
   final _player = AudioPlayer();
   bool _ready = false;
+  bool _failed = false;
 
   @override
   void initState() {
@@ -30,12 +36,13 @@ class _AudioMessagePlayerState extends State<AudioMessagePlayer> {
   }
 
   Future<void> _load() async {
-    final resolved = resolveMatrixImage(widget.mxcUrl);
-    if (resolved == null) return;
     try {
-      await _player.setUrl(resolved.$1, headers: resolved.$2);
+      final file = await attachmentFile(widget.event);
+      await _player.setFilePath(file.path);
       if (mounted) setState(() => _ready = true);
-    } catch (_) {}
+    } catch (_) {
+      if (mounted) setState(() => _failed = true);
+    }
   }
 
   @override
@@ -60,9 +67,11 @@ class _AudioMessagePlayerState extends State<AudioMessagePlayer> {
               return IconButton(
                 padding: EdgeInsets.zero,
                 icon: Icon(
-                  playing && !completed
-                      ? Icons.pause_circle_filled
-                      : Icons.play_circle_fill,
+                  _failed
+                      ? Icons.error_outline
+                      : playing && !completed
+                          ? Icons.pause_circle_filled
+                          : Icons.play_circle_fill,
                   color: fg,
                   size: 34,
                 ),
@@ -124,61 +133,18 @@ class _AudioMessagePlayerState extends State<AudioMessagePlayer> {
   }
 }
 
-/// Video message thumbnail → tap opens fullscreen player.
-class VideoMessageTile extends StatelessWidget {
-  const VideoMessageTile({super.key, required this.mxcUrl, this.thumbnailUrl});
-  final String mxcUrl;
-  final String? thumbnailUrl;
+/// Image message — decrypts + shows the attachment, tap opens fullscreen.
+class ChatImage extends StatefulWidget {
+  const ChatImage({super.key, required this.event});
+  final Event event;
 
   @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: () => Navigator.of(context).push(
-        MaterialPageRoute(
-          builder: (_) => _VideoFullScreen(mxcUrl: mxcUrl),
-          fullscreenDialog: true,
-        ),
-      ),
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(14),
-        child: Stack(
-          alignment: Alignment.center,
-          children: [
-            Container(
-              width: 240,
-              height: 160,
-              color: Colors.black12,
-              child: thumbnailUrl != null
-                  ? MxcImage(url: thumbnailUrl!, width: 240, height: 160)
-                  : null,
-            ),
-            const DecoratedBox(
-              decoration: BoxDecoration(
-                color: Colors.black54,
-                shape: BoxShape.circle,
-              ),
-              child: Padding(
-                padding: EdgeInsets.all(8),
-                child: Icon(Icons.play_arrow, color: Colors.white, size: 32),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
+  State<ChatImage> createState() => _ChatImageState();
 }
 
-class _VideoFullScreen extends StatefulWidget {
-  const _VideoFullScreen({required this.mxcUrl});
-  final String mxcUrl;
-
-  @override
-  State<_VideoFullScreen> createState() => _VideoFullScreenState();
-}
-
-class _VideoFullScreenState extends State<_VideoFullScreen> {
-  VideoPlayerController? _ctl;
+class _ChatImageState extends State<ChatImage> {
+  File? _file;
+  bool _failed = false;
 
   @override
   void initState() {
@@ -187,15 +153,144 @@ class _VideoFullScreenState extends State<_VideoFullScreen> {
   }
 
   Future<void> _load() async {
-    final resolved = resolveMatrixImage(widget.mxcUrl);
-    if (resolved == null) return;
-    final c = VideoPlayerController.networkUrl(
-      Uri.parse(resolved.$1),
-      httpHeaders: resolved.$2,
+    try {
+      final f = await attachmentFile(widget.event);
+      if (mounted) setState(() => _file = f);
+    } catch (_) {
+      if (mounted) setState(() => _failed = true);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final file = _file;
+    return GestureDetector(
+      onTap: file == null
+          ? null
+          : () => Navigator.of(context).push(
+                MaterialPageRoute(
+                  builder: (_) => _ImageFullScreen(file: file),
+                  fullscreenDialog: true,
+                ),
+              ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(14),
+        child: file != null
+            ? Image.file(file, width: 240, fit: BoxFit.cover)
+            : Container(
+                width: 240,
+                height: 180,
+                color: const Color(0x22000000),
+                child: Center(
+                  child: _failed
+                      ? const Icon(Icons.broken_image_outlined,
+                          color: Colors.grey)
+                      : const SizedBox(
+                          width: 22,
+                          height: 22,
+                          child:
+                              CircularProgressIndicator(strokeWidth: 2),
+                        ),
+                ),
+              ),
+      ),
     );
-    await c.initialize();
-    await c.play();
-    if (mounted) setState(() => _ctl = c);
+  }
+}
+
+class _ImageFullScreen extends StatelessWidget {
+  const _ImageFullScreen({required this.file});
+  final File file;
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: Colors.black,
+      appBar: AppBar(
+        backgroundColor: Colors.black,
+        foregroundColor: Colors.white,
+        elevation: 0,
+      ),
+      body: Center(
+        child: InteractiveViewer(
+          minScale: 1,
+          maxScale: 5,
+          child: Image.file(file),
+        ),
+      ),
+    );
+  }
+}
+
+/// Video message thumbnail → tap opens fullscreen player.
+class VideoMessageTile extends StatelessWidget {
+  const VideoMessageTile({super.key, required this.event});
+  final Event event;
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: () => Navigator.of(context).push(
+        MaterialPageRoute(
+          builder: (_) => _VideoFullScreen(event: event),
+          fullscreenDialog: true,
+        ),
+      ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(14),
+        child: Container(
+          width: 240,
+          height: 160,
+          color: Colors.black,
+          alignment: Alignment.center,
+          child: const DecoratedBox(
+            decoration: BoxDecoration(
+              color: Colors.black54,
+              shape: BoxShape.circle,
+            ),
+            child: Padding(
+              padding: EdgeInsets.all(8),
+              child: Icon(Icons.play_arrow, color: Colors.white, size: 32),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _VideoFullScreen extends StatefulWidget {
+  const _VideoFullScreen({required this.event});
+  final Event event;
+
+  @override
+  State<_VideoFullScreen> createState() => _VideoFullScreenState();
+}
+
+class _VideoFullScreenState extends State<_VideoFullScreen> {
+  VideoPlayerController? _ctl;
+  bool _failed = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  Future<void> _load() async {
+    try {
+      final file = await attachmentFile(widget.event);
+      final c = VideoPlayerController.file(file);
+      await c.initialize();
+      await c.play();
+      if (mounted) {
+        setState(() => _ctl = c);
+      } else {
+        await c.dispose();
+      }
+    } catch (_) {
+      if (mounted) setState(() => _failed = true);
+    }
   }
 
   @override
@@ -215,16 +310,19 @@ class _VideoFullScreenState extends State<_VideoFullScreen> {
         elevation: 0,
       ),
       body: Center(
-        child: c == null
-            ? const CircularProgressIndicator()
-            : AspectRatio(
-                aspectRatio: c.value.aspectRatio,
-                child: GestureDetector(
-                  onTap: () => setState(() =>
-                      c.value.isPlaying ? c.pause() : c.play()),
-                  child: VideoPlayer(c),
-                ),
-              ),
+        child: _failed
+            ? const Icon(Icons.broken_image_outlined,
+                color: Colors.grey, size: 48)
+            : c == null
+                ? const CircularProgressIndicator()
+                : AspectRatio(
+                    aspectRatio: c.value.aspectRatio,
+                    child: GestureDetector(
+                      onTap: () => setState(() =>
+                          c.value.isPlaying ? c.pause() : c.play()),
+                      child: VideoPlayer(c),
+                    ),
+                  ),
       ),
     );
   }
