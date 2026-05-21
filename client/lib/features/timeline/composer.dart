@@ -122,11 +122,41 @@ class _ComposerState extends State<Composer> {
     setState(() => _tray = _Tray.none);
     switch (kind) {
       case 'camera':
-        await _pickAndSendPhoto(ImageSource.camera);
+        await _openCamera();
       case 'photo':
         await _pickAndSendPhoto(ImageSource.gallery);
       case 'video':
         await _pickAndSendVideo(ImageSource.gallery);
+    }
+  }
+
+  /// Camera tile — pick photo or video, then open the OS camera.
+  Future<void> _openCamera() async {
+    final shoot = await showModalBottomSheet<String>(
+      context: context,
+      showDragHandle: true,
+      builder: (_) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+              leading: const PebbleIcon(PIcon.camera),
+              title: Text('composer.takePhoto'.tr),
+              onTap: () => Navigator.pop(context, 'photo'),
+            ),
+            ListTile(
+              leading: const PebbleIcon(PIcon.film),
+              title: Text('composer.recordVideo'.tr),
+              onTap: () => Navigator.pop(context, 'video'),
+            ),
+          ],
+        ),
+      ),
+    );
+    if (shoot == 'photo') {
+      await _pickAndSendPhoto(ImageSource.camera);
+    } else if (shoot == 'video') {
+      await _pickAndSendVideo(ImageSource.camera);
     }
   }
 
