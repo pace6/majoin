@@ -1,0 +1,131 @@
+name: Distribute app
+
+# Builds the Flutter client and ships it to Firebase App Distribution.
+# Android always runs; iOS runs only when the Apple signing secrets exist.
+# Setup + required secrets: docs/app-distribution.md
+#
+# Trigger: push a tag like `app-v0.1.0`, or run manually.
+
+on:
+  workflow_dispatch:
+    inputs:
+      notes:
+        description: 'Release notes for testers'
+        required: false
+        default: 'Manual build'
+  push:
+    tags: ['app-v*']
+
+concurrency:
+  group: distribute-app
+  cancel-in-progress: false
+
+env:
+  # Tester group configured in the Firebase console.
+  FIREBASE_GROUPS: testers
+
+jobs:
+  android:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: client
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+
+      - run: flutter pub get
+
+      - name: Write release keystore
+        run: |
+          echo "${{ secrets.ANDROID_KEYSTORE_BASE64 }}" | base64 -d > android/app/release.jks
+          cat > android/key.properties <<EOF
+          storeFile=release.jks
+          storePassword=${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          keyAlias=${{ secrets.ANDROID_KEY_ALIAS }}
+          keyPassword=${{ secrets.ANDROID_KEY_PASSWORD }}
+          EOF
+
+      - name: Build release APK
+        run: flutter build apk --release
+
+      - name: Upload to Firebase App Distribution
+        uses: wzieba/Firebase-Distribution-Github-Action@v1
+        with:
+          appId: ${{ secrets.FIREBASE_ANDROID_APP_ID }}
+          serviceCredentialsFileContent: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+          groups: ${{ env.FIREBASE_GROUPS }}
+          file: client/build/app/outputs/flutter-apk/app-release.apk
+          releaseNotes: ${{ github.event.inputs.notes || github.ref_name }}
+
+  ios:
+    runs-on: macos-14
+    # iOS needs an Apple Developer account + signing material. The job is
+    # skipped until IOS_CERTIFICATE_BASE64 is set as a repo secret.
+    if: ${{ vars.IOS_ENABLED == 'true' }}
+    defaults:
+      run:
+        working-directory: client
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+
+      - run: flutter pub get
+
+      - name: Import signing certificate
+        uses: apple-actions/import-codesign-certs@v3
+        with:
+          p12-file-base64: ${{ secrets.IOS_CERTIFICATE_BASE64 }}
+          p12-password: ${{ secrets.IOS_CERTIFICATE_PASSWORD }}
+
+      - name: Install provisioning profile
+        run: |
+          PROFILES="$HOME/Library/MobileDevice/Provisioning Profiles"
+          mkdir -p "$PROFILES"
+          echo "${{ secrets.IOS_PROVISIONING_PROFILE_BASE64 }}" | base64 -d \
+            > "$PROFILES/majoin.mobileprovision"
+
+      - name: Write ExportOptions.plist
+        run: |
+          cat > ios/ExportOptions.plist <<EOF
+          <?xml version="1.0" encoding="UTF-8"?>
+          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+          <plist version="1.0">
+          <dict>
+            <key>method</key><string>ad-hoc</string>
+            <key>teamID</key><string>${{ secrets.APPLE_TEAM_ID }}</string>
+            <key>signingStyle</key><string>manual</string>
+            <key>compileBitcode</key><false/>
+            <key>uploadSymbols</key><true/>
+          </dict>
+          </plist>
+          EOF
+
+      - name: Build release IPA
+        run: flutter build ipa --release --export-options-plist=ios/ExportOptions.plist
+
+      - name: Locate IPA
+        id: ipa
+        run: echo "path=$(ls build/ios/ipa/*.ipa | head -1)" >> "$GITHUB_OUTPUT"
+
+      - name: Upload to Firebase App Distribution
+        uses: wzieba/Firebase-Distribution-Github-Action@v1
+        with:
+          appId: ${{ secrets.FIREBASE_IOS_APP_ID }}
+          serviceCredentialsFileContent: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+          groups: ${{ env.FIREBASE_GROUPS }}
+          file: client/${{ steps.ipa.outputs.path }}
+          releaseNotes: ${{ github.event.inputs.notes || github.ref_name }}
