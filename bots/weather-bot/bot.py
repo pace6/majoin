@@ -39,6 +39,16 @@ log = logging.getLogger("weather-bot")
 
 FLEX_EVENT_TYPE = "app.majoin.flex"
 
+# Sent the first time the bot meets a user — a short guide to what it does.
+_GREETING = (
+    "ยินดีต้อนรับสู่ Majoin! 🌤️\n\n"
+    "ฉันคือบอทพยากรณ์อากาศ สิ่งที่ฉันทำได้:\n"
+    "• ถามอากาศเมืองไหนก็ได้ — พิมพ์มาเลย เช่น “อากาศโตเกียว”\n"
+    "• ทุกเช้า 7 โมง ฉันส่งพยากรณ์ให้อัตโนมัติ\n"
+    "• คุยเล่นกับฉันได้ ส่งสติกเกอร์มาก็ตอบ\n\n"
+    "นี่คือพยากรณ์ 5 วันข้างหน้า 👇"
+)
+
 
 def _env(name: str, default: str | None = None) -> str:
     val = os.environ.get(name, default)
@@ -110,8 +120,9 @@ class WeatherBot:
         # Keep the "typing…" indicator alive for the whole Claude call —
         # a single typing notice expires, so re-assert it on a timer.
         typing = asyncio.create_task(self._keep_typing(room.room_id))
+        location = None
         try:
-            reply = await ask_claude(prompt)
+            reply, location = await ask_claude(prompt)
         except Exception as exc:  # noqa: BLE001 - demo bot, degrade gracefully
             log.warning("claude reply failed: %s", exc)
             reply = "ขออภัย ตอนนี้ตอบไม่ได้ ลองใหม่อีกครั้งนะ 🌧️"
@@ -119,7 +130,20 @@ class WeatherBot:
             typing.cancel()
             await self.client.room_typing(room.room_id, False)
         await self._send_text(room.room_id, reply or "🤔")
+        # Weather-related — always follow up with a forecast carousel.
+        if location is not None:
+            await self._send_forecast(room.room_id, location)
         log.info("replied in %s", room.room_id)
+
+    async def _send_forecast(self, room_id: str, location: tuple) -> None:
+        """Send a 5-day forecast carousel for a resolved (lat, lon, name)."""
+        lat, lon, name = location
+        try:
+            data = await fetch_weather(lat, lon, days=5)
+            carousel, alt = weather_carousel(data, place=name)
+            await self._send_flex(room_id, carousel, alt)
+        except Exception as exc:  # noqa: BLE001
+            log.warning("forecast carousel for %s failed: %s", name, exc)
 
     async def _keep_typing(self, room_id: str) -> None:
         """Re-send the typing indicator every 15s until cancelled."""
@@ -164,11 +188,11 @@ class WeatherBot:
     # ---- Flows ----
 
     async def _send_greeting(self, room_id: str) -> None:
-        """Welcome line + a multi-day weather carousel."""
+        """Welcome + a short guide to what the bot does, then a carousel."""
         try:
             data = await fetch_weather(days=5)
             carousel, alt = weather_carousel(data)
-            await self._send_text(room_id, "ยินดีต้อนรับสู่ Majoin! 🌤️")
+            await self._send_text(room_id, _GREETING)
             await self._send_flex(room_id, carousel, alt)
         except Exception as exc:  # noqa: BLE001 - demo bot, log and move on
             log.warning("greeting in %s failed: %s", room_id, exc)
