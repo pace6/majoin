@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:matrix/matrix.dart';
+import '../camera/camera_screen.dart';
 import '../stickers/pebble_stickers.dart';
 import '../../core/i18n/strings.dart';
 import '../../ui/theme/app_theme.dart';
@@ -130,33 +131,29 @@ class _ComposerState extends State<Composer> {
     }
   }
 
-  /// Camera tile — pick photo or video, then open the OS camera.
+  /// Camera tile — open the in-app LINE-style camera (tap = photo,
+  /// hold the shutter = video).
   Future<void> _openCamera() async {
-    final shoot = await showModalBottomSheet<String>(
-      context: context,
-      showDragHandle: true,
-      builder: (_) => SafeArea(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            ListTile(
-              leading: const PebbleIcon(PIcon.camera),
-              title: Text('composer.takePhoto'.tr),
-              onTap: () => Navigator.pop(context, 'photo'),
-            ),
-            ListTile(
-              leading: const PebbleIcon(PIcon.film),
-              title: Text('composer.recordVideo'.tr),
-              onTap: () => Navigator.pop(context, 'video'),
-            ),
-          ],
-        ),
+    final result = await Navigator.of(context).push<CameraResult>(
+      MaterialPageRoute(
+        builder: (_) => const CameraScreen(),
+        fullscreenDialog: true,
       ),
     );
-    if (shoot == 'photo') {
-      await _pickAndSendPhoto(ImageSource.camera);
-    } else if (shoot == 'video') {
-      await _pickAndSendVideo(ImageSource.camera);
+    if (result == null) return;
+    try {
+      final bytes = await File(result.path).readAsBytes();
+      await widget.room.sendFileEvent(
+        result.isVideo
+            ? MatrixVideoFile(bytes: bytes, name: 'video.mp4')
+            : MatrixImageFile(bytes: bytes, name: 'photo.jpg'),
+      );
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('${'pickerError'.tr}: $e')),
+        );
+      }
     }
   }
 
