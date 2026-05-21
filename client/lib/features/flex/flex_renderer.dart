@@ -62,7 +62,11 @@ Widget _renderBox(FlexBox b) {
     children.add(_renderComponent(b.contents[i]));
   }
   Widget content = b.layout == 'horizontal'
-      ? Row(crossAxisAlignment: CrossAxisAlignment.center, children: children)
+      ? Row(
+          crossAxisAlignment: CrossAxisAlignment.center,
+          mainAxisAlignment: _mainAxis(b.justifyContent),
+          children: children,
+        )
       : Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: children);
   if (b.paddingAll != null) {
     content = Padding(
@@ -170,6 +174,13 @@ double _spacing(String s) => switch (s) {
       'lg' => 16,
       'xl' => 24,
       _ => 8,
+    };
+
+MainAxisAlignment _mainAxis(String? j) => switch (j) {
+      'center' => MainAxisAlignment.center,
+      'end' => MainAxisAlignment.end,
+      'space-between' => MainAxisAlignment.spaceBetween,
+      _ => MainAxisAlignment.start,
     };
 
 TextAlign? _textAlign(String? a) => switch (a) {

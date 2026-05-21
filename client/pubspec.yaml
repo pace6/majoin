@@ -64,6 +64,13 @@ dev_dependencies:
     sdk: flutter
   flutter_lints: ^6.0.0
 
+# path_provider_foundation 2.5.0+ migrated to the objective_c FFI package,
+# whose objective_c.framework fails to embed into the iOS Simulator build
+# (incremental builds drop it -> "Couldn't resolve DOBJC_initializeApi" white
+# screen). Pin to the last pre-objective_c release.
+dependency_overrides:
+  path_provider_foundation: 2.4.1
+
 flutter:
   uses-material-design: true
   assets:

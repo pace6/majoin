@@ -72,16 +72,6 @@ class _LoginPageState extends State<LoginPage> {
                   ),
                   const SizedBox(height: 16),
                   Text(
-                    'login.title'.tr,
-                    textAlign: TextAlign.center,
-                    style: const TextStyle(
-                      fontSize: 34,
-                      fontWeight: FontWeight.w700,
-                      color: AppTheme.ink,
-                      letterSpacing: -1,
-                    ),
-                  ),
-                  Text(
                     'app.tagline'.tr,
                     textAlign: TextAlign.center,
                     style: const TextStyle(

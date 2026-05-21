@@ -1,217 +1,144 @@
 import 'package:flutter/material.dart';
-import '../../core/client/matrix_client.dart';
+import 'package:go_router/go_router.dart';
 import '../../core/i18n/strings.dart';
-import '../../core/util/mxid.dart';
 
-/// Entry sheet — choose Direct chat or Group room. Returns the new/reused
-/// room id on success.
+/// Entry sheet — a LINE-style "Create" grid (Chat / Group / Meeting) that
+/// slides down from the top. Returns the new/reused room id on success.
 Future<String?> showNewChatDialog(BuildContext context) async {
-  final mode = await showModalBottomSheet<String>(
+  final mode = await showGeneralDialog<String>(
     context: context,
-    showDragHandle: true,
-    builder: (_) => SafeArea(
-      child: Wrap(
-        children: [
-          ListTile(
-            leading: const Icon(Icons.person_outline),
-            title: Text('newChat.direct'.tr),
-            subtitle: Text('newChat.directDesc'.tr),
-            onTap: () => Navigator.pop(context, 'dm'),
+    barrierDismissible: true,
+    barrierLabel:
+        MaterialLocalizations.of(context).modalBarrierDismissLabel,
+    barrierColor: Colors.black54,
+    transitionDuration: const Duration(milliseconds: 240),
+    pageBuilder: (sheetCtx, _, _) => Align(
+      alignment: Alignment.topCenter,
+      child: Material(
+        color: Theme.of(sheetCtx).colorScheme.surface,
+        clipBehavior: Clip.antiAlias,
+        borderRadius:
+            const BorderRadius.vertical(bottom: Radius.circular(20)),
+        child: SafeArea(
+          bottom: false,
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(8, 4, 8, 16),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                // Header — centered title, close button on the left.
+                SizedBox(
+                  height: 48,
+                  child: Stack(
+                    alignment: Alignment.center,
+                    children: [
+                      Text('newChat.title'.tr,
+                          style: const TextStyle(
+                              fontSize: 16, fontWeight: FontWeight.w700)),
+                      Align(
+                        alignment: Alignment.centerLeft,
+                        child: IconButton(
+                          icon: const Icon(Icons.close),
+                          onPressed: () => Navigator.pop(sheetCtx),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 8),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: _CreateOption(
+                          icon: Icons.chat_bubble_outline,
+                          label: 'newChat.optChat'.tr,
+                          onTap: () => Navigator.pop(sheetCtx, 'dm'),
+                        ),
+                      ),
+                      Expanded(
+                        child: _CreateOption(
+                          icon: Icons.group_add_outlined,
+                          label: 'newChat.optGroup'.tr,
+                          onTap: () => Navigator.pop(sheetCtx, 'group'),
+                        ),
+                      ),
+                      // Meeting (group call) isn't implemented yet — shown
+                      // disabled as a placeholder.
+                      Expanded(
+                        child: _CreateOption(
+                          icon: Icons.video_call_outlined,
+                          label: 'newChat.optMeeting'.tr,
+                          onTap: null,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
           ),
-          ListTile(
-            leading: const Icon(Icons.group_outlined),
-            title: Text('newChat.group'.tr),
-            subtitle: Text('newChat.groupDesc'.tr),
-            onTap: () => Navigator.pop(context, 'group'),
-          ),
-        ],
+        ),
       ),
+    ),
+    transitionBuilder: (_, anim, _, child) => SlideTransition(
+      position: Tween<Offset>(
+        begin: const Offset(0, -1),
+        end: Offset.zero,
+      ).animate(CurvedAnimation(parent: anim, curve: Curves.easeOutCubic)),
+      child: child,
     ),
   );
   if (mode == null || !context.mounted) return null;
-  return mode == 'dm'
-      ? showDirectChatDialog(context)
-      : showGroupRoomDialog(context);
+  // Both flows are full slide-in screens, for a consistent look.
+  // Add-friends navigates into the chat itself, so it pops no room id.
+  if (mode == 'dm') return context.push<String>('/add-friends');
+  return context.push<String>('/create-group');
 }
 
-Future<String?> showDirectChatDialog(BuildContext context) async {
-  final ctl = TextEditingController();
-  String? error;
-  bool busy = false;
+/// One icon-in-rounded-square option in the "Create" grid.
+class _CreateOption extends StatelessWidget {
+  const _CreateOption({required this.icon, required this.label, this.onTap});
+  final IconData icon;
+  final String label;
+  final VoidCallback? onTap;
 
-  return showDialog<String>(
-    context: context,
-    builder: (ctx) {
-      return StatefulBuilder(
-        builder: (ctx, setState) {
-          Future<void> submit() async {
-            final raw = ctl.text.trim();
-            if (!isValidContactInput(raw)) {
-              setState(() => error = 'newChat.usernameHint'.tr);
-              return;
-            }
-            setState(() {
-              busy = true;
-              error = null;
-            });
-            try {
-              final id = await MatrixClientService.instance.client
-                  .startDirectChat(mxidFromInput(raw));
-              if (ctx.mounted) Navigator.of(ctx).pop(id);
-            } catch (e) {
-              setState(() {
-                busy = false;
-                error = e.toString();
-              });
-            }
-          }
-
-          return AlertDialog(
-            title: Text('newChat.directTitle'.tr),
-            content: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text('newChat.directHint'.tr),
-                const SizedBox(height: 8),
-                TextField(
-                  controller: ctl,
-                  autofocus: true,
-                  decoration: InputDecoration(
-                    hintText: 'newChat.usernamePlaceholder'.tr,
-                    border: const OutlineInputBorder(),
-                  ),
-                  onSubmitted: (_) => submit(),
-                ),
-                if (error != null) ...[
-                  const SizedBox(height: 8),
-                  Text(error!, style: const TextStyle(color: Colors.red)),
-                ],
-              ],
+  @override
+  Widget build(BuildContext context) {
+    final enabled = onTap != null;
+    final fg = enabled
+        ? Theme.of(context).colorScheme.onSurface
+        : Theme.of(context).disabledColor;
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(16),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 10),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 60,
+              height: 60,
+              decoration: BoxDecoration(
+                border: Border.all(
+                    color: enabled
+                        ? const Color(0x33000000)
+                        : const Color(0x14000000),
+                    width: 1.6),
+                borderRadius: BorderRadius.circular(16),
+              ),
+              child: Icon(icon, size: 26, color: fg),
             ),
-            actions: [
-              TextButton(
-                onPressed: busy ? null : () => Navigator.of(ctx).pop(),
-                child: Text('common.cancel'.tr),
-              ),
-              FilledButton(
-                onPressed: busy ? null : submit,
-                child: busy
-                    ? const SizedBox(
-                        height: 16,
-                        width: 16,
-                        child: CircularProgressIndicator(strokeWidth: 2),
-                      )
-                    : Text('newChat.startChat'.tr),
-              ),
-            ],
-          );
-        },
-      );
-    },
-  );
-}
-
-Future<String?> showGroupRoomDialog(BuildContext context) async {
-  final nameCtl = TextEditingController();
-  final inviteCtl = TextEditingController();
-  String? error;
-  bool busy = false;
-
-  return showDialog<String>(
-    context: context,
-    builder: (ctx) {
-      return StatefulBuilder(
-        builder: (ctx, setState) {
-          Future<void> submit() async {
-            final name = nameCtl.text.trim();
-            if (name.isEmpty) {
-              setState(() => error = 'newChat.groupNameRequired'.tr);
-              return;
-            }
-            final rawInvites = inviteCtl.text
-                .split(RegExp(r'[\s,]+'))
-                .where((s) => s.isNotEmpty)
-                .toList();
-            for (final id in rawInvites) {
-              if (!isValidContactInput(id)) {
-                setState(() => error = '${'newChat.badUsername'.tr}: $id');
-                return;
-              }
-            }
-            final invites = rawInvites.map(mxidFromInput).toList();
-            setState(() {
-              busy = true;
-              error = null;
-            });
-            try {
-              final id = await MatrixClientService.instance.client
-                  .createGroupChat(
-                groupName: name,
-                invite: invites.isEmpty ? null : invites,
-              );
-              if (ctx.mounted) Navigator.of(ctx).pop(id);
-            } catch (e) {
-              setState(() {
-                busy = false;
-                error = e.toString();
-              });
-            }
-          }
-
-          return AlertDialog(
-            title: Text('newChat.groupTitle'.tr),
-            content: SizedBox(
-              width: 360,
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  TextField(
-                    controller: nameCtl,
-                    autofocus: true,
-                    decoration: InputDecoration(
-                      labelText: 'newChat.groupName'.tr,
-                      border: const OutlineInputBorder(),
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-                  TextField(
-                    controller: inviteCtl,
-                    minLines: 1,
-                    maxLines: 4,
-                    decoration: InputDecoration(
-                      labelText: 'newChat.invite'.tr,
-                      hintText: 'newChat.inviteHint'.tr,
-                      border: const OutlineInputBorder(),
-                    ),
-                  ),
-                  if (error != null) ...[
-                    const SizedBox(height: 8),
-                    Text(error!, style: const TextStyle(color: Colors.red)),
-                  ],
-                ],
-              ),
-            ),
-            actions: [
-              TextButton(
-                onPressed: busy ? null : () => Navigator.of(ctx).pop(),
-                child: Text('common.cancel'.tr),
-              ),
-              FilledButton(
-                onPressed: busy ? null : submit,
-                child: busy
-                    ? const SizedBox(
-                        height: 16,
-                        width: 16,
-                        child: CircularProgressIndicator(strokeWidth: 2),
-                      )
-                    : Text('newChat.create'.tr),
-              ),
-            ],
-          );
-        },
-      );
-    },
-  );
+            const SizedBox(height: 8),
+            Text(label,
+                style: TextStyle(
+                    fontSize: 12.5,
+                    fontWeight: FontWeight.w500,
+                    color: fg)),
+          ],
+        ),
+      ),
+    );
+  }
 }

@@ -13,6 +13,7 @@ import 'core/i18n/strings.dart';
 import 'core/push/push_service.dart';
 import 'features/call/call_service.dart';
 import 'features/rooms/add_friends_screen.dart';
+import 'features/rooms/create_group_screen.dart';
 import 'features/security/key_backup_gate.dart';
 import 'features/security/verification_sheet.dart';
 import 'ui/pages/login_page.dart';
@@ -82,6 +83,10 @@ class _MajoinAppState extends State<MajoinApp> {
           builder: (_, __) => const AddFriendsScreen(),
         ),
         GoRoute(
+          path: '/create-group',
+          builder: (_, __) => const CreateGroupScreen(),
+        ),
+        GoRoute(
           path: '/rooms',
           builder: (_, __) => const _AdaptiveHome(),
           routes: [
@@ -99,8 +104,11 @@ class _MajoinAppState extends State<MajoinApp> {
       ],
     );
 
-    // Push: init once we have a client + logged in.
+    // Push + calls: init once we have a client + logged in. The client may
+    // already be restored (MatrixClientService.init() runs in main() before
+    // this listener is attached), so run the check once directly too.
     MatrixClientService.instance.addListener(_maybeInitPush);
+    _maybeInitPush();
   }
 
   void _maybeInitPush() {

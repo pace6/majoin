@@ -4,11 +4,10 @@ import 'package:go_router/go_router.dart';
 import '../../core/i18n/strings.dart';
 import '../../ui/widgets/pebble_icon.dart';
 import '../../ui/theme/app_theme.dart';
-import 'new_chat_dialog.dart';
 import 'room_list.dart';
 
-/// WhatsApp-style Chats screen: large title, search field, an "All" filter
-/// chip, then the room list.
+/// Chats screen: a search field with add-friend / add-group / add-meeting
+/// actions, then the room list.
 class ChatsTab extends StatefulWidget {
   const ChatsTab({super.key});
 
@@ -26,8 +25,10 @@ class _ChatsTabState extends State<ChatsTab> {
     super.dispose();
   }
 
-  Future<void> _newChat() async {
-    final id = await showNewChatDialog(context);
+  void _addFriend() => context.push('/add-friends');
+
+  Future<void> _addGroup() async {
+    final id = await context.push<String>('/create-group');
     if (id != null && mounted) {
       context.push('/rooms/${Uri.encodeComponent(id)}');
     }
@@ -39,46 +40,53 @@ class _ChatsTabState extends State<ChatsTab> {
       bottom: false,
       child: Column(
         children: [
-          // Large title + actions.
+          // Search + action icons.
           Padding(
-            padding: const EdgeInsets.fromLTRB(16, 6, 6, 2),
+            padding: const EdgeInsets.fromLTRB(16, 8, 6, 10),
             child: Row(
               children: [
-                Text('tab.chats'.tr,
-                    style: const TextStyle(
-                        fontSize: 28, fontWeight: FontWeight.w800)),
-                const Spacer(),
+                Expanded(
+                  child: TextField(
+                    controller: _searchCtl,
+                    onChanged: (v) => setState(() => _query = v),
+                    style: const TextStyle(fontSize: 15),
+                    decoration: InputDecoration(
+                      hintText: 'common.search'.tr,
+                      hintStyle:
+                          const TextStyle(color: AppTheme.subtleText),
+                      prefixIcon: const PebbleIcon(PIcon.search,
+                          size: 20, color: AppTheme.subtleText),
+                      prefixIconConstraints: const BoxConstraints(
+                          minWidth: 38, minHeight: 38),
+                      isDense: true,
+                      contentPadding:
+                          const EdgeInsets.symmetric(vertical: 9),
+                      filled: true,
+                      fillColor: const Color(0x0D000000),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: BorderSide.none,
+                      ),
+                    ),
+                  ),
+                ),
                 IconButton(
-                  tooltip: 'rooms.newChat'.tr,
-                  icon: const PebbleIcon(PIcon.edit),
-                  onPressed: _newChat,
+                  tooltip: 'newChat.optChat'.tr,
+                  icon: const Icon(Icons.person_add_outlined),
+                  onPressed: _addFriend,
+                ),
+                IconButton(
+                  tooltip: 'newChat.optGroup'.tr,
+                  icon: const Icon(Icons.group_add_outlined),
+                  onPressed: _addGroup,
+                ),
+                // Meeting (group call) isn't implemented yet.
+                IconButton(
+                  tooltip: 'newChat.optMeeting'.tr,
+                  icon: const Icon(Icons.video_call_outlined),
+                  onPressed: null,
                 ),
               ],
-            ),
-          ),
-          // Search — soft rounded pill.
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 4, 16, 10),
-            child: TextField(
-              controller: _searchCtl,
-              onChanged: (v) => setState(() => _query = v),
-              style: const TextStyle(fontSize: 15),
-              decoration: InputDecoration(
-                hintText: 'common.search'.tr,
-                hintStyle: const TextStyle(color: AppTheme.subtleText),
-                prefixIcon:
-                    const PebbleIcon(PIcon.search, size: 20, color: AppTheme.subtleText),
-                prefixIconConstraints:
-                    const BoxConstraints(minWidth: 38, minHeight: 38),
-                isDense: true,
-                contentPadding: const EdgeInsets.symmetric(vertical: 9),
-                filled: true,
-                fillColor: const Color(0x0D000000),
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                  borderSide: BorderSide.none,
-                ),
-              ),
             ),
           ),
           Expanded(

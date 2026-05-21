@@ -188,7 +188,7 @@ class _RoomTileState extends State<_RoomTile> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    roomTitle(r),
+                    roomTitleWithCount(r),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: const TextStyle(

@@ -47,3 +47,12 @@ String roomTitle(Room room) {
   }
   return room.getLocalizedDisplayname();
 }
+
+/// Like [roomTitle], but appends the joined-member count for group rooms —
+/// e.g. "Weekend Trip (5)". 1:1 chats are returned unchanged.
+String roomTitleWithCount(Room room) {
+  final base = roomTitle(room);
+  if (isOneToOne(room)) return base;
+  final count = room.summary.mJoinedMemberCount ?? 0;
+  return count > 0 ? '$base ($count)' : base;
+}

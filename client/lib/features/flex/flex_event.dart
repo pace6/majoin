@@ -76,6 +76,7 @@ class FlexBox extends FlexComponent {
     this.spacing,
     this.paddingAll,
     this.backgroundColor,
+    this.justifyContent,
   });
   /// "vertical" or "horizontal".
   final String layout;
@@ -83,6 +84,9 @@ class FlexBox extends FlexComponent {
   final String? spacing; // "sm" | "md" | "lg"
   final String? paddingAll; // "sm" | "md" | "lg"
   final String? backgroundColor; // "#rrggbb"
+  /// Main-axis distribution for a horizontal box:
+  /// "start" | "center" | "end" | "space-between".
+  final String? justifyContent;
 
   @override
   String get type => 'box';
@@ -95,6 +99,7 @@ class FlexBox extends FlexComponent {
         if (spacing != null) 'spacing': spacing,
         if (paddingAll != null) 'paddingAll': paddingAll,
         if (backgroundColor != null) 'backgroundColor': backgroundColor,
+        if (justifyContent != null) 'justifyContent': justifyContent,
       };
 
   static FlexBox fromJson(Map<String, dynamic> j) => FlexBox(
@@ -105,6 +110,7 @@ class FlexBox extends FlexComponent {
         spacing: j['spacing'] as String?,
         paddingAll: j['paddingAll'] as String?,
         backgroundColor: j['backgroundColor'] as String?,
+        justifyContent: j['justifyContent'] as String?,
       );
 }
 

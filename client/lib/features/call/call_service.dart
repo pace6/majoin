@@ -29,14 +29,20 @@ class CallService implements WebRTCDelegate {
     if (_instance != null) return;
     final svc = CallService._(navKey);
     svc.voip = VoIP(MatrixClientService.instance.client, svc);
-    await svc._notif.initialize(
-      const InitializationSettings(
-        android: AndroidInitializationSettings('@mipmap/ic_launcher'),
-        iOS: DarwinInitializationSettings(),
-        macOS: DarwinInitializationSettings(),
-      ),
-    );
+    // Register before notification setup — notif init can throw on iOS, and a
+    // missing ringtone notification must not leave CallService unusable.
     _instance = svc;
+    try {
+      await svc._notif.initialize(
+        const InitializationSettings(
+          android: AndroidInitializationSettings('@mipmap/ic_launcher'),
+          iOS: DarwinInitializationSettings(),
+          macOS: DarwinInitializationSettings(),
+        ),
+      );
+    } catch (e) {
+      debugPrint('CallService: notification init failed: $e');
+    }
   }
 
   // ---- WebRTCDelegate ----

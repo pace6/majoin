@@ -19,7 +19,7 @@ class MobileShell extends StatefulWidget {
 }
 
 class _MobileShellState extends State<MobileShell> {
-  int _tab = 1; // Default to Chats
+  int _tab = 0; // Default to Home
 
   static const _tabs = <_TabSpec>[
     _TabSpec('tab.home', PIcon.home),
@@ -39,16 +39,8 @@ class _MobileShellState extends State<MobileShell> {
     };
 
     return Scaffold(
-      // Chats draws its own large-title header; the rest use a plain bar.
-      appBar: _tab == 1
-          ? null
-          : AppBar(
-              titleSpacing: 16,
-              title: Text(_tabs[_tab].label.tr,
-                  style: const TextStyle(
-                      fontWeight: FontWeight.w700, fontSize: 18)),
-            ),
-      body: body,
+      // No page-title bar — each tab manages its own header.
+      body: SafeArea(bottom: false, child: body),
       bottomNavigationBar: Container(
         decoration: const BoxDecoration(
           border: Border(

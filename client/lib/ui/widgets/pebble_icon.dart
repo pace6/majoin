@@ -32,6 +32,7 @@ enum PIcon {
   chevron,
   speaker,
   check,
+  chatAdd,
 }
 
 class PebbleIcon extends StatelessWidget {
@@ -196,5 +197,17 @@ String _svg(PIcon i, Color c, bool filled) {
       return _stroke('M4 9h4l5-4v14l-5-4H4zM17 9a4 4 0 0 1 0 6M20 6a8 8 0 0 1 0 12', c);
     case PIcon.check:
       return _stroke('M5 12l4 4 10-10', c, sw: 2.2);
+    case PIcon.chatAdd:
+      // Speech bubble with three dots, plus a "+" glyph at the corner.
+      return '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">'
+          '<path d="M3 5.5C3 4.67 3.67 4 4.5 4h10C15.33 4 16 4.67 16 5.5v7'
+          'c0 .83-.67 1.5-1.5 1.5H8l-3.5 3v-3H4.5C3.67 14 3 13.33 3 12.5v-7Z" '
+          'fill="none" stroke="${_hex(c)}" stroke-width="1.7" '
+          'stroke-linejoin="round"/>'
+          '<circle cx="6.7" cy="9" r="1" fill="${_hex(c)}"/>'
+          '<circle cx="9.5" cy="9" r="1" fill="${_hex(c)}"/>'
+          '<circle cx="12.3" cy="9" r="1" fill="${_hex(c)}"/>'
+          '<path d="M18 14.5v6M15 17.5h6" stroke="${_hex(c)}" '
+          'stroke-width="1.9" stroke-linecap="round"/></svg>';
   }
 }

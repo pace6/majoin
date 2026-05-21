@@ -42,17 +42,7 @@ class _RegisterPageState extends State<RegisterPage> {
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  const SizedBox(height: 16),
-                  Text(
-                    'register.title'.tr,
-                    textAlign: TextAlign.center,
-                    style: const TextStyle(
-                      fontSize: 28,
-                      fontWeight: FontWeight.w700,
-                      color: AppTheme.ink,
-                    ),
-                  ),
-                  const SizedBox(height: 24),
+                  const SizedBox(height: 8),
                   Card(
                     elevation: 0,
                     shape: RoundedRectangleBorder(

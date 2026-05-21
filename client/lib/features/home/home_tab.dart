@@ -133,29 +133,17 @@ class _HomeTabState extends State<HomeTab> {
               ),
             ),
 
-            // Groups.
+            // Groups row — same circle layout as Friends.
             _sectionLabel('home.groups'.tr),
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              child: Container(
-                decoration: BoxDecoration(
-                  color: AppTheme.card,
-                  borderRadius: BorderRadius.circular(18),
-                ),
-                clipBehavior: Clip.antiAlias,
-                child: groups.isEmpty
-                    ? Padding(
-                        padding: const EdgeInsets.all(20),
-                        child: Text('home.noGroups'.tr,
-                            style: const TextStyle(
-                                color: AppTheme.subtleText, fontSize: 13)),
-                      )
-                    : Column(
-                        children: [
-                          for (var i = 0; i < groups.length; i++)
-                            _groupRow(groups[i], i == groups.length - 1),
-                        ],
-                      ),
+            SizedBox(
+              height: 92,
+              child: ListView(
+                scrollDirection: Axis.horizontal,
+                padding: const EdgeInsets.symmetric(horizontal: 20),
+                children: [
+                  _addGroupCircle(),
+                  for (final r in groups) _groupCircle(r),
+                ],
               ),
             ),
           ],
@@ -174,6 +162,71 @@ class _HomeTabState extends State<HomeTab> {
       );
 
   void _addFriends() => context.push('/add-friends');
+
+  Future<void> _newGroup() async {
+    final id = await context.push<String>('/create-group');
+    if (id != null && mounted) {
+      context.push('/rooms/${Uri.encodeComponent(id)}');
+    }
+  }
+
+  /// "Create group" circle — mirrors [_addFriendCircle].
+  Widget _addGroupCircle() {
+    return GestureDetector(
+      onTap: _newGroup,
+      child: SizedBox(
+        width: 64,
+        child: Column(
+          children: [
+            Container(
+              width: 56,
+              height: 56,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                border: Border.all(
+                    color: const Color(0x33000000), width: 1.5),
+              ),
+              child: const PebbleIcon(PIcon.plus,
+                  size: 20, color: AppTheme.subtleText),
+            ),
+            const SizedBox(height: 6),
+            Text('home.add'.tr,
+                style: const TextStyle(
+                    fontSize: 11, color: AppTheme.subtleText)),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _groupCircle(Room r) {
+    final name = roomTitleWithCount(r);
+    return GestureDetector(
+      onTap: () => _openRoom(r),
+      child: Padding(
+        padding: const EdgeInsets.only(left: 14),
+        child: SizedBox(
+          width: 64,
+          child: Column(
+            children: [
+              _Avatar(
+                  mxc: r.avatar?.toString(),
+                  label: roomTitle(r),
+                  size: 56),
+              const SizedBox(height: 6),
+              Text(name,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w500,
+                      color: AppTheme.ink)),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
 
   Future<void> _editAvatar() async {
     if (await pickAndSetAvatar(context) && mounted) await _loadProfile();
@@ -235,78 +288,23 @@ class _HomeTabState extends State<HomeTab> {
     );
   }
 
-  Widget _groupRow(Room r, bool last) {
-    final name = roomTitle(r);
-    final members = r.summary.mJoinedMemberCount ?? 0;
-    return Column(
-      children: [
-        InkWell(
-          onTap: () => _openRoom(r),
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
-            child: Row(
-              children: [
-                _Avatar(
-                    mxc: r.avatar?.toString(),
-                    label: name,
-                    size: 40,
-                    square: true),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(name,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(
-                              fontSize: 14.5,
-                              fontWeight: FontWeight.w600,
-                              color: AppTheme.ink)),
-                      const SizedBox(height: 1),
-                      Text('$members ${'home.members'.tr}',
-                          style: const TextStyle(
-                              fontSize: 12.5, color: AppTheme.subtleText)),
-                    ],
-                  ),
-                ),
-                const PebbleIcon(PIcon.chevron,
-                    size: 18, color: AppTheme.subtleText),
-              ],
-            ),
-          ),
-        ),
-        if (!last)
-          const Divider(
-              height: 0.5,
-              thickness: 0.5,
-              indent: 66,
-              color: AppTheme.dividerColor),
-      ],
-    );
-  }
 }
 
-/// Round (or rounded-square) avatar with an mxc image or initial fallback.
+/// Round avatar with an mxc image or initial fallback.
 class _Avatar extends StatelessWidget {
   const _Avatar({
     required this.mxc,
     required this.label,
     required this.size,
-    this.square = false,
   });
   final String? mxc;
   final String label;
   final double size;
-  final bool square;
 
   @override
   Widget build(BuildContext context) {
-    final radius =
-        square ? BorderRadius.circular(size * 0.28) : BorderRadius.circular(size);
     final letter = label.isEmpty ? '?' : label.characters.first.toUpperCase();
-    return ClipRRect(
-      borderRadius: radius,
+    return ClipOval(
       child: SizedBox(
         width: size,
         height: size,

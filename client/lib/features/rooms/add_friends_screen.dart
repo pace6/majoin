@@ -4,7 +4,6 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:http/http.dart' as http;
 import 'package:matrix/matrix.dart';
-import 'package:qr_flutter/qr_flutter.dart';
 
 import '../../core/client/matrix_client.dart';
 import '../../core/config.dart';
@@ -33,9 +32,8 @@ class DirectoryUser {
   String get name => displayName.isNotEmpty ? displayName : localpartOf(userId);
 }
 
-enum _Tab { search, qr, suggested }
-
-/// Add Friends — Pebble layout: pill tabs for Search / QR / Suggested.
+/// Add Friends — a single search screen. The directory shows as suggestions
+/// until the user types a query; a "new group" shortcut sits above the list.
 class AddFriendsScreen extends StatefulWidget {
   const AddFriendsScreen({super.key});
 
@@ -44,12 +42,10 @@ class AddFriendsScreen extends StatefulWidget {
 }
 
 class _AddFriendsScreenState extends State<AddFriendsScreen> {
-  _Tab _tab = _Tab.search;
   List<DirectoryUser>? _users;
   String? _error;
   String _query = '';
   String? _openingUserId;
-  Profile? _profile;
 
   Client get _c => MatrixClientService.instance.client;
 
@@ -57,7 +53,6 @@ class _AddFriendsScreenState extends State<AddFriendsScreen> {
   void initState() {
     super.initState();
     _load();
-    _loadProfile();
   }
 
   Future<void> _load() async {
@@ -81,15 +76,6 @@ class _AddFriendsScreenState extends State<AddFriendsScreen> {
     } catch (e) {
       if (mounted) setState(() => _error = e.toString());
     }
-  }
-
-  Future<void> _loadProfile() async {
-    final id = _c.userID;
-    if (id == null) return;
-    try {
-      final p = await _c.getProfileFromUserId(id);
-      if (mounted) setState(() => _profile = p);
-    } catch (_) {}
   }
 
   /// MXIDs the user already has a direct chat with.
@@ -123,6 +109,13 @@ class _AddFriendsScreenState extends State<AddFriendsScreen> {
     }
   }
 
+  Future<void> _newGroup() async {
+    final id = await context.push<String>('/create-group');
+    if (id != null && mounted) {
+      context.push('/rooms/${Uri.encodeComponent(id)}');
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -135,59 +128,62 @@ class _AddFriendsScreenState extends State<AddFriendsScreen> {
       body: SafeArea(
         child: Column(
           children: [
-            // Pill tab bar.
-            SizedBox(
-              height: 56,
-              child: ListView(
-                scrollDirection: Axis.horizontal,
-                padding: const EdgeInsets.symmetric(horizontal: 12),
-                children: [
-                  _pill(_Tab.search, PIcon.search, 'addFriends.search'.tr),
-                  _pill(_Tab.qr, PIcon.qr, 'addFriends.qr'.tr),
-                  _pill(_Tab.suggested, PIcon.person,
-                      'addFriends.suggested'.tr),
-                ],
+            // Search field.
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
+              child: TextField(
+                onChanged: (v) => setState(() => _query = v),
+                decoration: InputDecoration(
+                  hintText: 'addFriends.searchHint'.tr,
+                  prefixIcon: const PebbleIcon(PIcon.search, size: 20),
+                  isDense: true,
+                  filled: true,
+                  fillColor: const Color(0x0D000000),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(14),
+                    borderSide: BorderSide.none,
+                  ),
+                ),
               ),
             ),
-            Expanded(child: _body()),
+            // New group shortcut.
+            _newGroupTile(),
+            const Divider(height: 1, thickness: 0.5),
+            Expanded(child: _list()),
           ],
         ),
       ),
     );
   }
 
-  Widget _pill(_Tab tab, PIcon icon, String label) {
-    final active = _tab == tab;
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 10),
-      child: InkWell(
-        onTap: () => setState(() => _tab = tab),
-        borderRadius: BorderRadius.circular(22),
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 16),
-          decoration: BoxDecoration(
-            color: active ? AppTheme.accent : const Color(0x0D000000),
-            borderRadius: BorderRadius.circular(22),
-          ),
-          child: Row(
-            children: [
-              PebbleIcon(icon,
-                  size: 16,
-                  color: active ? Colors.white : AppTheme.subtleText),
-              const SizedBox(width: 6),
-              Text(label,
-                  style: TextStyle(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w600,
-                      color: active ? Colors.white : AppTheme.ink)),
-            ],
-          ),
+  Widget _newGroupTile() {
+    return InkWell(
+      onTap: _newGroup,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+        child: Row(
+          children: [
+            Container(
+              width: 46,
+              height: 46,
+              decoration: const BoxDecoration(
+                color: AppTheme.accentSoft,
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(Icons.group_add_outlined,
+                  size: 22, color: AppTheme.accentDeep),
+            ),
+            const SizedBox(width: 12),
+            Text('newChat.group'.tr,
+                style: const TextStyle(
+                    fontSize: 15, fontWeight: FontWeight.w600)),
+          ],
         ),
       ),
     );
   }
 
-  Widget _body() {
+  Widget _list() {
     if (_error != null) {
       return Center(
         child: Column(
@@ -201,151 +197,53 @@ class _AddFriendsScreenState extends State<AddFriendsScreen> {
         ),
       );
     }
-    return switch (_tab) {
-      _Tab.search => _searchTab(),
-      _Tab.qr => _qrTab(),
-      _Tab.suggested => _suggestedTab(),
-    };
-  }
-
-  Widget _searchTab() {
-    final users = _users;
-    final q = _query.trim().toLowerCase();
-    final results = (users == null || q.isEmpty)
-        ? <DirectoryUser>[]
-        : users
-            .where((u) =>
-                u.name.toLowerCase().contains(q) ||
-                localpartOf(u.userId).toLowerCase().contains(q))
-            .toList();
-    return Column(
-      children: [
-        Padding(
-          padding: const EdgeInsets.fromLTRB(16, 4, 16, 10),
-          child: TextField(
-            autofocus: true,
-            onChanged: (v) => setState(() => _query = v),
-            decoration: InputDecoration(
-              hintText: 'addFriends.searchHint'.tr,
-              prefixIcon: const PebbleIcon(PIcon.search, size: 20),
-              isDense: true,
-              filled: true,
-              fillColor: const Color(0x0D000000),
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(14),
-                borderSide: BorderSide.none,
-              ),
-            ),
-          ),
-        ),
-        Expanded(
-          child: q.isEmpty
-              ? _hint('addFriends.searchEmpty'.tr)
-              : users == null
-                  ? const Center(child: CircularProgressIndicator())
-                  : results.isEmpty
-                      ? _hint('friends.empty'.tr)
-                      : ListView(children: results.map(_userTile).toList()),
-        ),
-      ],
-    );
-  }
-
-  Widget _suggestedTab() {
     final users = _users;
     if (users == null) {
       return const Center(child: CircularProgressIndicator());
     }
-    final connected = _connectedPeers();
-    final suggested =
-        users.where((u) => !connected.contains(u.userId)).toList();
-    if (suggested.isEmpty) return _hint('friends.empty'.tr);
-    return RefreshIndicator(
-      onRefresh: _load,
-      child: ListView(children: suggested.map(_userTile).toList()),
-    );
-  }
 
-  Widget _qrTab() {
-    final mxid = _c.userID ?? '';
-    final name = (_profile?.displayName?.isNotEmpty ?? false)
-        ? _profile!.displayName!
-        : localpartOf(mxid);
-    final avatarMxc = _profile?.avatarUrl?.toString();
-    return ListView(
-      padding: const EdgeInsets.all(16),
-      children: [
-        Container(
-          padding: const EdgeInsets.all(20),
-          decoration: BoxDecoration(
-            color: AppTheme.card,
-            borderRadius: BorderRadius.circular(18),
-          ),
-          child: Column(
-            children: [
-              Row(
-                children: [
-                  ClipOval(
-                    child: SizedBox(
-                      width: 48,
-                      height: 48,
-                      child: avatarMxc != null
-                          ? MxcImage(url: avatarMxc, width: 48, height: 48)
-                          : Container(
-                              color: AppTheme.accentSoft,
-                              alignment: Alignment.center,
-                              child: Text(
-                                  name.isEmpty
-                                      ? '?'
-                                      : name.characters.first.toUpperCase(),
-                                  style: const TextStyle(
-                                      fontSize: 20,
-                                      fontWeight: FontWeight.w700,
-                                      color: AppTheme.accentDeep)),
-                            ),
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(name,
-                          style: const TextStyle(
-                              fontSize: 16, fontWeight: FontWeight.w700)),
-                      Text('@${localpartOf(mxid)}',
-                          style: const TextStyle(
-                              fontSize: 13, color: AppTheme.subtleText)),
-                    ],
-                  ),
-                ],
-              ),
-              const SizedBox(height: 20),
-              QrImageView(
-                data: 'https://matrix.to/#/$mxid',
-                size: 220,
-                backgroundColor: Colors.white,
-                eyeStyle: const QrEyeStyle(
-                    eyeShape: QrEyeShape.square, color: AppTheme.ink),
-                dataModuleStyle: const QrDataModuleStyle(
-                    dataModuleShape: QrDataModuleShape.square,
-                    color: AppTheme.ink),
-              ),
-              const SizedBox(height: 16),
-              Text('addFriends.qrHint'.tr,
-                  textAlign: TextAlign.center,
-                  style: const TextStyle(
-                      fontSize: 13, color: AppTheme.subtleText)),
-            ],
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _hint(String text) => Center(
-        child: Text(text,
+    final q = _query.trim().toLowerCase();
+    final List<DirectoryUser> shown;
+    String? header;
+    if (q.isEmpty) {
+      // No query — show the directory as suggestions, hiding existing chats.
+      final connected = _connectedPeers();
+      shown = users.where((u) => !connected.contains(u.userId)).toList();
+      header = 'addFriends.suggested'.tr;
+    } else {
+      shown = users
+          .where((u) =>
+              u.name.toLowerCase().contains(q) ||
+              localpartOf(u.userId).toLowerCase().contains(q))
+          .toList();
+    }
+    if (shown.isEmpty) {
+      return Center(
+        child: Text('friends.empty'.tr,
             style: const TextStyle(color: AppTheme.subtleText)),
       );
+    }
+    return RefreshIndicator(
+      onRefresh: _load,
+      child: ListView(
+        children: [
+          if (header != null)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 12, 16, 2),
+              child: Align(
+                alignment: Alignment.centerLeft,
+                child: Text(header,
+                    style: const TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w700,
+                        color: AppTheme.subtleText)),
+              ),
+            ),
+          ...shown.map(_userTile),
+        ],
+      ),
+    );
+  }
 
   Widget _userTile(DirectoryUser u) {
     final busy = _openingUserId == u.userId;

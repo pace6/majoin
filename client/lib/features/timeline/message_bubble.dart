@@ -31,6 +31,11 @@ class MessageBubble extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // Call invites render as a centered system entry, not a sender bubble.
+    if (event.type == 'm.call.invite') {
+      return _CallEntry(invite: event, timeline: timeline);
+    }
+
     // Render the latest edit (or redaction) of this event, not the original.
     final display = event.getDisplayEvent(timeline);
     final isSticker = display.type == 'm.sticker';
@@ -221,6 +226,112 @@ class MessageBubble extends StatelessWidget {
         ],
       ),
       style: TextStyle(color: color, fontSize: 15, height: 1.3),
+    );
+  }
+}
+
+enum _CallOutcome { ringing, answered, missed, canceled, declined }
+
+/// Centered timeline entry for a voice/video call — resolves its outcome
+/// (answered + duration, missed, canceled, declined) by reading the matching
+/// `m.call.answer` / `m.call.hangup` / `m.call.reject` events off [timeline].
+class _CallEntry extends StatelessWidget {
+  const _CallEntry({required this.invite, required this.timeline});
+  final Event invite;
+  final Timeline timeline;
+
+  bool get _isVideo {
+    final offer = invite.content['offer'];
+    final sdp = offer is Map ? offer['sdp'] : null;
+    return sdp is String && sdp.contains('m=video');
+  }
+
+  static String _fmtDuration(Duration d) {
+    final m = d.inMinutes;
+    final s = d.inSeconds % 60;
+    return '$m:${s.toString().padLeft(2, '0')}';
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final myId = MatrixClientService.instance.client.userID;
+    final outgoing = invite.senderId == myId;
+    final callId = invite.content['call_id'];
+
+    // Newest-first scan; one answer / one ender per call in practice.
+    Event? answer;
+    Event? ender;
+    for (final e in timeline.events) {
+      if (e.content['call_id'] != callId) continue;
+      if (e.type == 'm.call.answer') {
+        answer ??= e;
+      } else if (e.type == 'm.call.hangup' || e.type == 'm.call.reject') {
+        ender ??= e;
+      }
+    }
+
+    _CallOutcome outcome;
+    Duration? duration;
+    if (answer != null) {
+      outcome = _CallOutcome.answered;
+      final end = ender?.originServerTs ?? DateTime.now();
+      duration = end.difference(answer.originServerTs);
+    } else if (ender == null) {
+      outcome = _CallOutcome.ringing;
+    } else if (ender.type == 'm.call.reject') {
+      outcome = _CallOutcome.declined;
+    } else if (ender.senderId == invite.senderId) {
+      // Caller hung up before it was answered.
+      outcome = outgoing ? _CallOutcome.canceled : _CallOutcome.missed;
+    } else {
+      // Callee hung up without answering.
+      outcome = _CallOutcome.declined;
+    }
+
+    final kind =
+        (_isVideo ? 'call.videoCall' : 'call.voiceCall').tr;
+    IconData icon = _isVideo ? Icons.videocam_outlined : Icons.call_outlined;
+    Color color = AppTheme.subtleText;
+    String label;
+    switch (outcome) {
+      case _CallOutcome.answered:
+        label = '$kind · ${_fmtDuration(duration!)}';
+      case _CallOutcome.ringing:
+        label = 'call.calling'.tr;
+      case _CallOutcome.missed:
+        icon = Icons.call_missed;
+        color = const Color(0xFFFF3B30);
+        label = 'call.missed'.tr;
+      case _CallOutcome.canceled:
+        icon = _isVideo ? Icons.videocam_off_outlined : Icons.call_missed;
+        label = 'call.noAnswer'.tr;
+      case _CallOutcome.declined:
+        label = 'call.declined'.tr;
+    }
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 8),
+      child: Center(
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+          decoration: BoxDecoration(
+            color: const Color(0x14000000),
+            borderRadius: BorderRadius.circular(14),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(icon, size: 15, color: color),
+              const SizedBox(width: 6),
+              Text(label,
+                  style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w500,
+                      color: color)),
+            ],
+          ),
+        ),
+      ),
     );
   }
 }
