@@ -127,8 +127,6 @@ class _ComposerState extends State<Composer> {
         await _pickAndSendPhoto(ImageSource.gallery);
       case 'video':
         await _pickAndSendVideo(ImageSource.gallery);
-      case 'audio':
-        if (mounted) setState(() => _recording = true);
     }
   }
 
@@ -440,11 +438,12 @@ class _AttachTray extends StatelessWidget {
   const _AttachTray({required this.onPick});
   final void Function(String kind) onPick;
 
+  // Voice messages have the dedicated mic button in the composer, so the
+  // tray is just camera / photo / video.
   static const _items = <(String, PIcon, Color, String)>[
     ('camera', PIcon.camera, Color(0xFF22B07D), 'attach.camera'),
     ('photo', PIcon.image, Color(0xFF3A6FF0), 'attach.photo'),
     ('video', PIcon.film, Color(0xFFE86A5C), 'attach.video'),
-    ('audio', PIcon.mic, Color(0xFFFF9F40), 'attach.audio'),
   ];
 
   @override
