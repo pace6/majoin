@@ -12,7 +12,10 @@ WorkingDirectory=/opt/majoin
 # DATABASE_URL. See deploy/.env.example for the format.
 EnvironmentFile=/opt/majoin/.env
 # uv resolves the venv from .venv/ created by `uv sync`.
-ExecStart=/usr/local/bin/uv run uvicorn main:app --host 127.0.0.1 --port 8410
+# gunicorn manages workers; each worker is a uvicorn (ASGI) process.
+ExecStart=/usr/local/bin/uv run gunicorn main:app \
+    --worker-class uvicorn.workers.UvicornWorker \
+    --workers 2 --bind 127.0.0.1:8410
 Restart=on-failure
 RestartSec=3
 
