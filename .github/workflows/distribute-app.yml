@@ -150,11 +150,20 @@ jobs:
         id: ipa
         run: echo "path=$(ls build/ios/ipa/*.ipa | head -1)" >> "$GITHUB_OUTPUT"
 
+      # wzieba/Firebase-Distribution-Github-Action is a Docker container
+      # action — Linux runners only — so on macos-15 we drive the Firebase
+      # CLI directly instead.
+      - name: Install Firebase CLI
+        run: npm install -g firebase-tools
+
       - name: Upload to Firebase App Distribution
-        uses: wzieba/Firebase-Distribution-Github-Action@v1
-        with:
-          appId: ${{ secrets.FIREBASE_IOS_APP_ID }}
-          serviceCredentialsFileContent: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
-          groups: ${{ env.FIREBASE_GROUPS }}
-          file: client/${{ steps.ipa.outputs.path }}
-          releaseNotes: ${{ github.event.inputs.notes || github.ref_name }}
+        env:
+          SA_JSON: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+          GOOGLE_APPLICATION_CREDENTIALS: ${{ runner.temp }}/firebase-sa.json
+          NOTES: ${{ github.event.inputs.notes || github.ref_name }}
+        run: |
+          printf '%s' "$SA_JSON" > "$GOOGLE_APPLICATION_CREDENTIALS"
+          firebase appdistribution:distribute "${{ steps.ipa.outputs.path }}" \
+            --app "${{ secrets.FIREBASE_IOS_APP_ID }}" \
+            --groups "${{ env.FIREBASE_GROUPS }}" \
+            --release-notes "$NOTES"
