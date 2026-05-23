@@ -25,7 +25,7 @@ Reuse the existing FCM project if there is one (see `docs/push-setup.md`),
 otherwise create a project at <https://console.firebase.google.com>.
 
 - **Add an Android app** — package name `app.majoin.majoin`.
-- **Add an iOS app** — bundle id `app.majoin.majoin`.
+- **Add an iOS app** — bundle id `app.majoin.majoin2`.
 
 Copy each app's **App ID** (looks like `1:1234567890:android:abc123`) from
 Project settings → General.
@@ -62,7 +62,7 @@ Requires an **Apple Developer account** ($99/yr). On a Mac with Xcode:
 - Create an **Apple Distribution** certificate, export it as `.p12` (with a
   password).
 - Create an **Ad Hoc** provisioning profile for bundle id
-  `app.majoin.majoin`, including every tester device UDID. (Or use App
+  `app.majoin.majoin2`, including every tester device UDID. (Or use App
   Distribution's automatic device registration.)
 - Base64-encode both:
   ```bash
