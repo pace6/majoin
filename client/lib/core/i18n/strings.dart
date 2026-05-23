@@ -91,6 +91,10 @@ const Map<String, Map<String, String>> _bundles = {
     'profile.myQr': 'คิวอาร์ของฉัน',
     'profile.share': 'แชร์',
     'profile.invite': 'เชิญ',
+    'profile.qrHint': 'ให้เพื่อนสแกนเพื่อเพิ่มคุณเป็นเพื่อน',
+    'profile.qrCopy': 'คัดลอก ID',
+    'profile.qrCopied': 'คัดลอกแล้ว',
+    'profile.qrClose': 'ปิด',
     'settings.account': 'บัญชี',
     'settings.appearance': 'หน้าตา',
 
@@ -364,6 +368,10 @@ const Map<String, Map<String, String>> _bundles = {
     'profile.myQr': 'My QR',
     'profile.share': 'Share',
     'profile.invite': 'Invite',
+    'profile.qrHint': 'Let a friend scan to add you',
+    'profile.qrCopy': 'Copy ID',
+    'profile.qrCopied': 'Copied',
+    'profile.qrClose': 'Close',
     'settings.account': 'Account',
     'settings.appearance': 'Appearance',
 
