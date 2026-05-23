@@ -14,6 +14,7 @@ import 'core/push/push_service.dart';
 import 'features/call/call_service.dart';
 import 'features/rooms/add_friends_screen.dart';
 import 'features/rooms/create_group_screen.dart';
+import 'features/rooms/qr_scan_screen.dart';
 import 'features/security/key_backup_gate.dart';
 import 'features/security/verification_sheet.dart';
 import 'ui/pages/login_page.dart';
@@ -85,6 +86,10 @@ class _MajoinAppState extends State<MajoinApp> {
         GoRoute(
           path: '/create-group',
           builder: (_, __) => const CreateGroupScreen(),
+        ),
+        GoRoute(
+          path: '/scan-qr',
+          builder: (_, __) => const QrScanScreen(),
         ),
         GoRoute(
           path: '/rooms',

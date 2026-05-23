@@ -28,3 +28,39 @@ bool isValidContactInput(String raw) {
   final local = localpartOf(mxidFromInput(raw));
   return local.isNotEmpty;
 }
+
+/// Parse a Matrix user identifier out of a scanned QR payload.
+///
+/// Accepts a `matrix.to` share URL — the canonical Matrix format we render
+/// in "My QR" — as well as a bare mxid or a raw localpart, so users can
+/// scan QRs produced by other Matrix clients too.
+///
+/// Returns the full `@local:server` mxid on success, or `null` if the
+/// payload doesn't look like a user identifier (e.g. a room link, an
+/// arbitrary URL).
+String? mxidFromShareUrl(String? raw) {
+  if (raw == null) return null;
+  var s = raw.trim();
+  if (s.isEmpty) return null;
+
+  // matrix.to URLs put the mxid (percent-encoded) after `#/`. The path may
+  // include `?via=` query params; ignore those.
+  final lower = s.toLowerCase();
+  final hashIdx = s.indexOf('#/');
+  if ((lower.startsWith('https://matrix.to/') ||
+          lower.startsWith('http://matrix.to/') ||
+          lower.startsWith('matrix:')) &&
+      hashIdx != -1) {
+    s = s.substring(hashIdx + 2);
+    final q = s.indexOf('?');
+    if (q != -1) s = s.substring(0, q);
+    s = Uri.decodeComponent(s);
+  }
+
+  // matrix.to also encodes rooms (`!id:server`, `#alias:server`). We only
+  // care about user identifiers here.
+  if (s.startsWith('!') || s.startsWith('#')) return null;
+
+  final mxid = mxidFromInput(s);
+  return isValidContactInput(mxid) && mxid.startsWith('@') ? mxid : null;
+}

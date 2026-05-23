@@ -78,13 +78,15 @@ class _AddFriendsScreenState extends State<AddFriendsScreen> {
     }
   }
 
-  Future<void> _openChat(DirectoryUser u) async {
+  Future<void> _openChat(DirectoryUser u) => _openChatByUserId(u.userId);
+
+  Future<void> _openChatByUserId(String userId) async {
     if (_openingUserId != null) return;
-    setState(() => _openingUserId = u.userId);
+    setState(() => _openingUserId = userId);
     try {
       // Reuse an existing chat with this peer instead of creating a duplicate.
-      final id = findDirectRoom(_c, u.userId)?.id ??
-          await _c.startDirectChat(u.userId);
+      final id = findDirectRoom(_c, userId)?.id ??
+          await _c.startDirectChat(userId);
       if (mounted) context.push('/rooms/${Uri.encodeComponent(id)}');
     } catch (e) {
       if (mounted) {
@@ -104,6 +106,18 @@ class _AddFriendsScreenState extends State<AddFriendsScreen> {
     }
   }
 
+  Future<void> _scanQr() async {
+    final mxid = await context.push<String>('/scan-qr');
+    if (mxid == null || !mounted) return;
+    if (mxid == _c.userID) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('addFriends.scanSelf'.tr)),
+      );
+      return;
+    }
+    await _openChatByUserId(mxid);
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -112,6 +126,13 @@ class _AddFriendsScreenState extends State<AddFriendsScreen> {
         title: Text('addFriends.title'.tr,
             style:
                 const TextStyle(fontWeight: FontWeight.w700, fontSize: 18)),
+        actions: [
+          IconButton(
+            tooltip: 'addFriends.scan'.tr,
+            icon: const PebbleIcon(PIcon.qr, size: 22),
+            onPressed: _scanQr,
+          ),
+        ],
       ),
       body: SafeArea(
         child: Column(
