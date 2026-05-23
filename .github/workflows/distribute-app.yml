@@ -68,9 +68,12 @@ jobs:
           releaseNotes: ${{ github.event.inputs.notes || github.ref_name }}
 
   ios:
-    runs-on: macos-14
-    # iOS needs an Apple Developer account + signing material. The job is
-    # skipped until IOS_CERTIFICATE_BASE64 is set as a repo secret.
+    # macos-15 ships Xcode 16, which is required by recent Flutter plugins
+    # (e.g. camera_avfoundation uses iOS 18 SDK symbols like
+    # AVCaptureSession.wasInterruptedNotification).
+    runs-on: macos-15
+    # iOS needs an Apple Developer account + signing material. Gated by the
+    # IOS_ENABLED repo variable so the job stays off until secrets are set.
     if: ${{ vars.IOS_ENABLED == 'true' }}
     defaults:
       run:
